@@ -19,6 +19,9 @@ internal static class IdentityRegistration
             .AddEntityFrameworkStores<ExpenseHubDbContext>()
             .AddSignInManager();
 
+        services.Configure<AdminSeedOptions>(configuration.GetSection(AdminSeedOptions.SectionName));
+        services.AddScoped<IdentitySeeder>();
+
         return services;
     }
 }
