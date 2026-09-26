@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading;
@@ -26,6 +27,17 @@ internal sealed class EfExpenseRepository : IExpenseRepository
             .Include(expense => expense.Category)
             .Where(scope)
             .FirstOrDefaultAsync(expense => expense.Id == id, cancellationToken);
+
+    public async Task<IReadOnlyList<Expense>> ListAsync(
+        Expression<Func<Expense, bool>> scope,
+        CancellationToken cancellationToken) =>
+        await _context.Expenses
+            .AsNoTracking()
+            .Include(expense => expense.Category)
+            .Where(scope)
+            .OrderByDescending(expense => expense.CreatedAt)
+            .ThenBy(expense => expense.Id)
+            .ToListAsync(cancellationToken);
 
     public void Add(Expense expense) => _context.Expenses.Add(expense);
 

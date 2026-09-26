@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using ExpenseHub.Api.Contracts.Requests;
@@ -13,13 +14,16 @@ using Microsoft.AspNetCore.Mvc;
 namespace ExpenseHub.Api.Controllers;
 
 /// <summary>
-/// Reembolsos do usuário autenticado: criação, edição e envio.
+/// Reembolsos: criação, edição, envio e consulta conforme o perfil.
 /// </summary>
 [ApiController]
 [Route("api/expenses")]
 [Authorize]
 public sealed class ExpensesController : ControllerBase
 {
+    // admin sozinho não lê reembolso; precisa ter uma dessas roles também
+    private const string ReaderRoles = Roles.Employee + "," + Roles.Approver + "," + Roles.Finance + "," + Roles.Auditor;
+
     private readonly IExpenseService _expenses;
 
     /// <summary>Cria o controller.</summary>
@@ -60,6 +64,33 @@ public sealed class ExpensesController : ControllerBase
     public async Task<IActionResult> Update(Guid id, ExpenseDraftRequest request, CancellationToken cancellationToken)
     {
         ServiceResult<ExpenseResponse> result = await _expenses.UpdateAsync(id, request, CurrentUser, cancellationToken);
+        return this.ToActionResult(result, Ok);
+    }
+
+    /// <summary>Lista os reembolsos que o perfil do usuário pode ver.</summary>
+    /// <param name="cancellationToken">Cancelamento da requisição.</param>
+    /// <returns>Reembolsos visíveis.</returns>
+    [HttpGet]
+    [Authorize(Roles = ReaderRoles)]
+    [ProducesResponseType<IReadOnlyList<ExpenseResponse>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> List(CancellationToken cancellationToken)
+    {
+        ServiceResult<IReadOnlyList<ExpenseResponse>> result = await _expenses.ListAsync(CurrentUser, cancellationToken);
+        return this.ToActionResult(result, Ok);
+    }
+
+    /// <summary>Consulta um reembolso visível.</summary>
+    /// <param name="id">Identificador do reembolso.</param>
+    /// <param name="cancellationToken">Cancelamento da requisição.</param>
+    /// <returns>Reembolso ou 404.</returns>
+    [HttpGet("{id:guid}")]
+    [Authorize(Roles = ReaderRoles)]
+    [ProducesResponseType<ExpenseResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Get(Guid id, CancellationToken cancellationToken)
+    {
+        ServiceResult<ExpenseResponse> result = await _expenses.GetAsync(id, CurrentUser, cancellationToken);
         return this.ToActionResult(result, Ok);
     }
 
