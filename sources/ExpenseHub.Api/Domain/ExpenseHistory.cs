@@ -4,6 +4,26 @@ namespace ExpenseHub.Api.Domain;
 
 internal sealed class ExpenseHistory
 {
+    public ExpenseHistory(
+        Guid expenseId,
+        ExpenseAction action,
+        string actorId,
+        DateTime occurredAt,
+        ExpenseStatus? fromStatus,
+        ExpenseStatus toStatus,
+        string? justification = null,
+        string? changes = null)
+    {
+        ExpenseId = expenseId;
+        Action = action;
+        ActorId = actorId;
+        OccurredAt = occurredAt;
+        FromStatus = fromStatus;
+        ToStatus = toStatus;
+        Justification = justification;
+        Changes = changes;
+    }
+
     private ExpenseHistory()
     {
     }
