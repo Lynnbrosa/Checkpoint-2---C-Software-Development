@@ -25,6 +25,7 @@ internal static class Program
         app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
             .WithName("GetHealth");
 
+        await DatabaseInitializer.InitializeAsync(app.Services);
         await app.RunAsync();
     }
 }
