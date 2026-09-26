@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using ExpenseHub.Api.Contracts.Requests;
@@ -8,7 +9,7 @@ using ExpenseHub.Api.Security;
 namespace ExpenseHub.Api.Services;
 
 /// <summary>
-/// Criação e edição de rascunhos de reembolso.
+/// Criação, edição, envio e consulta de reembolsos.
 /// </summary>
 public interface IExpenseService
 {
@@ -33,4 +34,24 @@ public interface IExpenseService
         ExpenseDraftRequest request,
         UserContext user,
         CancellationToken cancellationToken);
+
+    /// <summary>Envia um rascunho próprio para aprovação.</summary>
+    /// <param name="id">Identificador do reembolso.</param>
+    /// <param name="user">Usuário autenticado.</param>
+    /// <param name="cancellationToken">Cancelamento da requisição.</param>
+    /// <returns>Reembolso em <c>Submitted</c> ou erro de negócio.</returns>
+    Task<ServiceResult<ExpenseResponse>> SubmitAsync(Guid id, UserContext user, CancellationToken cancellationToken);
+
+    /// <summary>Lista os reembolsos visíveis para o perfil do usuário.</summary>
+    /// <param name="user">Usuário autenticado.</param>
+    /// <param name="cancellationToken">Cancelamento da requisição.</param>
+    /// <returns>Reembolsos visíveis, mais recentes primeiro.</returns>
+    Task<ServiceResult<IReadOnlyList<ExpenseResponse>>> ListAsync(UserContext user, CancellationToken cancellationToken);
+
+    /// <summary>Consulta um reembolso visível para o usuário.</summary>
+    /// <param name="id">Identificador do reembolso.</param>
+    /// <param name="user">Usuário autenticado.</param>
+    /// <param name="cancellationToken">Cancelamento da requisição.</param>
+    /// <returns>Reembolso ou 404 quando inexistente ou fora do escopo.</returns>
+    Task<ServiceResult<ExpenseResponse>> GetAsync(Guid id, UserContext user, CancellationToken cancellationToken);
 }

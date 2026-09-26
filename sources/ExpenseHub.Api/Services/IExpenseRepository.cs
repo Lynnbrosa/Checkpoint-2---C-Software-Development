@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,6 +14,8 @@ internal interface IExpenseRepository
 
     // scope é o filtro de acesso do usuário; vai pro WHERE antes de trazer qualquer linha
     Task<Expense?> FindAsync(Guid id, Expression<Func<Expense, bool>> scope, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<Expense>> ListAsync(Expression<Func<Expense, bool>> scope, CancellationToken cancellationToken);
 
     void Add(Expense expense);
 

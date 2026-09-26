@@ -30,4 +30,11 @@ internal static class TestData
         120.00m,
         Today.AddDays(-5),
         Now.UtcDateTime.AddDays(-1));
+
+    public static Expense Submitted(UserContext owner)
+    {
+        Expense expense = Draft(owner);
+        expense.Submit(owner.Id, Now.UtcDateTime.AddHours(-12));
+        return expense;
+    }
 }

@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using ExpenseHub.Api.Contracts.Requests;
@@ -109,6 +111,73 @@ internal sealed class ExpenseService : IExpenseService
         }
 
         return new ServiceResult<ExpenseResponse>(expense.ToResponse());
+    }
+
+    public async Task<ServiceResult<ExpenseResponse>> SubmitAsync(
+        Guid id,
+        UserContext user,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+
+        if (!user.IsInRole(Roles.Employee))
+        {
+            return Fail(ServiceError.Forbidden("Somente Employee envia reembolsos."));
+        }
+
+        string userId = user.Id;
+        Expense? expense = await _repository.FindAsync(id, candidate => candidate.OwnerId == userId, cancellationToken);
+        if (expense is null)
+        {
+            return Fail(NotFound());
+        }
+
+        // enviar de novo cai aqui: 409 e nenhum histórico novo
+        if (!expense.CanApply(ExpenseAction.Submitted))
+        {
+            return Fail(ServiceError.Conflict($"Só rascunhos podem ser enviados. Estado atual: {expense.Status}."));
+        }
+
+        expense.Submit(user.Id, UtcNow());
+        if (!await _repository.TrySaveChangesAsync(cancellationToken))
+        {
+            return Fail(ConcurrentChange());
+        }
+
+        return new ServiceResult<ExpenseResponse>(expense.ToResponse());
+    }
+
+    public async Task<ServiceResult<IReadOnlyList<ExpenseResponse>>> ListAsync(
+        UserContext user,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+
+        if (!ExpenseAccessPolicy.HasReadRole(user))
+        {
+            return new ServiceResult<IReadOnlyList<ExpenseResponse>>(
+                ServiceError.Forbidden("O perfil não consulta reembolsos."));
+        }
+
+        IReadOnlyList<Expense> expenses = await _repository.ListAsync(ExpenseAccessPolicy.ReadableBy(user), cancellationToken);
+        return new ServiceResult<IReadOnlyList<ExpenseResponse>>(expenses.Select(expense => expense.ToResponse()).ToList());
+    }
+
+    public async Task<ServiceResult<ExpenseResponse>> GetAsync(
+        Guid id,
+        UserContext user,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+
+        if (!ExpenseAccessPolicy.HasReadRole(user))
+        {
+            return Fail(ServiceError.Forbidden("O perfil não consulta reembolsos."));
+        }
+
+        // fora do escopo e inexistente respondem igual, pra não confirmar que o id existe
+        Expense? expense = await _repository.FindAsync(id, ExpenseAccessPolicy.ReadableBy(user), cancellationToken);
+        return expense is null ? Fail(NotFound()) : new ServiceResult<ExpenseResponse>(expense.ToResponse());
     }
 
     private ServiceError? Validate(ExpenseDraftRequest request)

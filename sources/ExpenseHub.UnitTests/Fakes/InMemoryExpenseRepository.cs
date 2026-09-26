@@ -37,6 +37,10 @@ internal sealed class InMemoryExpenseRepository : IExpenseRepository
     public Task<Expense?> FindAsync(Guid id, Expression<Func<Expense, bool>> scope, CancellationToken cancellationToken) =>
         Task.FromResult(_saved.AsQueryable().Where(scope).FirstOrDefault(expense => expense.Id == id));
 
+    public Task<IReadOnlyList<Expense>> ListAsync(Expression<Func<Expense, bool>> scope, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<Expense>>(
+            _saved.AsQueryable().Where(scope).OrderByDescending(expense => expense.CreatedAt).ToList());
+
     public void Add(Expense expense) => _pending.Add(expense);
 
     public Task<bool> TrySaveChangesAsync(CancellationToken cancellationToken)
