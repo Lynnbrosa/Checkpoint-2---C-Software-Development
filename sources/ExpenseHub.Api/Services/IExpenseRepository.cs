@@ -1,3 +1,5 @@
+using System;
+using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
 using ExpenseHub.Api.Domain;
@@ -8,6 +10,9 @@ namespace ExpenseHub.Api.Services;
 internal interface IExpenseRepository
 {
     Task<ExpenseCategory?> FindCategoryAsync(int categoryId, CancellationToken cancellationToken);
+
+    // scope é o filtro de acesso do usuário; vai pro WHERE antes de trazer qualquer linha
+    Task<Expense?> FindAsync(Guid id, Expression<Func<Expense, bool>> scope, CancellationToken cancellationToken);
 
     void Add(Expense expense);
 

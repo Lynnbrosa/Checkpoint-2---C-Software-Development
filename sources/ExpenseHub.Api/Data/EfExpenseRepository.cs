@@ -1,3 +1,6 @@
+using System;
+using System.Linq;
+using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
 using ExpenseHub.Api.Domain;
@@ -17,6 +20,12 @@ internal sealed class EfExpenseRepository : IExpenseRepository
 
     public Task<ExpenseCategory?> FindCategoryAsync(int categoryId, CancellationToken cancellationToken) =>
         _context.ExpenseCategories.FirstOrDefaultAsync(category => category.Id == categoryId, cancellationToken);
+
+    public Task<Expense?> FindAsync(Guid id, Expression<Func<Expense, bool>> scope, CancellationToken cancellationToken) =>
+        _context.Expenses
+            .Include(expense => expense.Category)
+            .Where(scope)
+            .FirstOrDefaultAsync(expense => expense.Id == id, cancellationToken);
 
     public void Add(Expense expense) => _context.Expenses.Add(expense);
 

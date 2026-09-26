@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using ExpenseHub.Api.Contracts.Requests;
@@ -7,7 +8,7 @@ using ExpenseHub.Api.Security;
 namespace ExpenseHub.Api.Services;
 
 /// <summary>
-/// Criação de rascunhos de reembolso.
+/// Criação e edição de rascunhos de reembolso.
 /// </summary>
 public interface IExpenseService
 {
@@ -17,6 +18,18 @@ public interface IExpenseService
     /// <param name="cancellationToken">Cancelamento da requisição.</param>
     /// <returns>Reembolso criado ou erro de negócio.</returns>
     Task<ServiceResult<ExpenseResponse>> CreateAsync(
+        ExpenseDraftRequest request,
+        UserContext user,
+        CancellationToken cancellationToken);
+
+    /// <summary>Edita um rascunho próprio.</summary>
+    /// <param name="id">Identificador do reembolso.</param>
+    /// <param name="request">Novos valores dos campos.</param>
+    /// <param name="user">Usuário autenticado.</param>
+    /// <param name="cancellationToken">Cancelamento da requisição.</param>
+    /// <returns>Reembolso atualizado ou erro de negócio.</returns>
+    Task<ServiceResult<ExpenseResponse>> UpdateAsync(
+        Guid id,
         ExpenseDraftRequest request,
         UserContext user,
         CancellationToken cancellationToken);

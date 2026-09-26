@@ -63,6 +63,54 @@ internal sealed class ExpenseService : IExpenseService
         return new ServiceResult<ExpenseResponse>(expense.ToResponse());
     }
 
+    public async Task<ServiceResult<ExpenseResponse>> UpdateAsync(
+        Guid id,
+        ExpenseDraftRequest request,
+        UserContext user,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(user);
+
+        if (!user.IsInRole(Roles.Employee))
+        {
+            return Fail(ServiceError.Forbidden("Somente Employee edita reembolsos."));
+        }
+
+        ServiceError? invalid = Validate(request);
+        if (invalid is not null)
+        {
+            return Fail(invalid);
+        }
+
+        // rascunho de outra pessoa não existe pra quem pergunta: 404, não 403
+        string userId = user.Id;
+        Expense? expense = await _repository.FindAsync(id, candidate => candidate.OwnerId == userId, cancellationToken);
+        if (expense is null)
+        {
+            return Fail(NotFound());
+        }
+
+        if (!expense.CanApply(ExpenseAction.Updated))
+        {
+            return Fail(ServiceError.Conflict($"Só rascunhos podem ser editados. Estado atual: {expense.Status}."));
+        }
+
+        ExpenseCategory? category = await _repository.FindCategoryAsync(request.CategoryId, cancellationToken);
+        if (category is null)
+        {
+            return Fail(UnknownCategory());
+        }
+
+        expense.UpdateDraft(category, request.Description, request.Amount, request.ExpenseDate, user.Id, UtcNow());
+        if (!await _repository.TrySaveChangesAsync(cancellationToken))
+        {
+            return Fail(ConcurrentChange());
+        }
+
+        return new ServiceResult<ExpenseResponse>(expense.ToResponse());
+    }
+
     private ServiceError? Validate(ExpenseDraftRequest request)
     {
         if (!ExpenseRules.IsValidDescription(request.Description))
@@ -96,6 +144,8 @@ internal sealed class ExpenseService : IExpenseService
 
     private static ServiceError UnknownCategory() =>
         ServiceError.Validation(nameof(ExpenseDraftRequest.CategoryId), "Categoria inexistente.");
+
+    private static ServiceError NotFound() => ServiceError.NotFound("Reembolso não encontrado.");
 
     private static ServiceError ConcurrentChange() =>
         ServiceError.Conflict("O reembolso foi alterado por outra requisição. Consulte e tente de novo.");

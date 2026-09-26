@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 
 namespace ExpenseHub.Api.Domain;
 
@@ -75,6 +76,83 @@ internal sealed class Expense
         return expense;
     }
 
+    public bool CanApply(ExpenseAction action) => ExpenseWorkflow.TryGetNextStatus(Status, action, out _);
+
+    public IReadOnlyList<ExpenseFieldChange> UpdateDraft(
+        ExpenseCategory category,
+        string description,
+        decimal amount,
+        DateOnly expenseDate,
+        string actorId,
+        DateTime nowUtc)
+    {
+        ArgumentNullException.ThrowIfNull(category);
+        EnsureValidDraft(description, amount);
+        ExpenseStatus next = NextStatusFor(ExpenseAction.Updated);
+
+        List<ExpenseFieldChange> changes = [];
+        if (!string.Equals(Description, description, StringComparison.Ordinal))
+        {
+            changes.Add(new ExpenseFieldChange("description", Description, description));
+        }
+
+        if (Amount != amount)
+        {
+            changes.Add(new ExpenseFieldChange("amount", FormatAmount(Amount), FormatAmount(amount)));
+        }
+
+        if (ExpenseDate != expenseDate)
+        {
+            changes.Add(new ExpenseFieldChange("expenseDate", FormatDate(ExpenseDate), FormatDate(expenseDate)));
+        }
+
+        if (CategoryId != category.Id)
+        {
+            changes.Add(new ExpenseFieldChange("categoryId", FormatId(CategoryId), FormatId(category.Id)));
+        }
+
+        // PUT igual ao que já está salvo não é alteração, então não entra no histórico
+        if (changes.Count == 0)
+        {
+            return changes;
+        }
+
+        Description = description;
+        Amount = amount;
+        ExpenseDate = expenseDate;
+        CategoryId = category.Id;
+        Category = category;
+        Record(ExpenseAction.Updated, actorId, nowUtc, next, changes: ExpenseChangeLog.Serialize(changes));
+
+        return changes;
+    }
+
+    private ExpenseStatus NextStatusFor(ExpenseAction action)
+    {
+        if (!ExpenseWorkflow.TryGetNextStatus(Status, action, out ExpenseStatus next))
+        {
+            throw new InvalidOperationException($"A ação {action} não é permitida em {Status}.");
+        }
+
+        return next;
+    }
+
+    // toda mudança passa por aqui: estado e histórico mudam juntos e vão no mesmo SaveChanges
+    private void Record(
+        ExpenseAction action,
+        string actorId,
+        DateTime nowUtc,
+        ExpenseStatus next,
+        string? justification = null,
+        string? changes = null)
+    {
+        ExpenseStatus previous = Status;
+        Status = next;
+        UpdatedAt = nowUtc;
+        ConcurrencyStamp = Guid.NewGuid();
+        History.Add(new ExpenseHistory(Id, action, actorId, nowUtc, previous, next, justification, changes));
+    }
+
     private static void EnsureValidDraft(string description, decimal amount)
     {
         if (!ExpenseRules.IsValidDescription(description))
@@ -87,4 +165,10 @@ internal sealed class Expense
             throw new ArgumentOutOfRangeException(nameof(amount), amount, "Valor fora do limite permitido.");
         }
     }
+
+    private static string FormatAmount(decimal value) => value.ToString("0.00", CultureInfo.InvariantCulture);
+
+    private static string FormatDate(DateOnly value) => value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+    private static string FormatId(int value) => value.ToString(CultureInfo.InvariantCulture);
 }

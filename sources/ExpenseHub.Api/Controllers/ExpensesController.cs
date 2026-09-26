@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using ExpenseHub.Api.Contracts.Requests;
@@ -43,5 +44,22 @@ public sealed class ExpensesController : ControllerBase
     {
         ServiceResult<ExpenseResponse> result = await _expenses.CreateAsync(request, CurrentUser, cancellationToken);
         return this.ToActionResult(result, expense => Created($"/api/expenses/{expense.Id}", expense));
+    }
+
+    /// <summary>Edita um rascunho próprio.</summary>
+    /// <param name="id">Identificador do reembolso.</param>
+    /// <param name="request">Novos valores.</param>
+    /// <param name="cancellationToken">Cancelamento da requisição.</param>
+    /// <returns>Reembolso atualizado.</returns>
+    [HttpPut("{id:guid}")]
+    [Authorize(Roles = Roles.Employee)]
+    [ProducesResponseType<ExpenseResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Update(Guid id, ExpenseDraftRequest request, CancellationToken cancellationToken)
+    {
+        ServiceResult<ExpenseResponse> result = await _expenses.UpdateAsync(id, request, CurrentUser, cancellationToken);
+        return this.ToActionResult(result, Ok);
     }
 }
