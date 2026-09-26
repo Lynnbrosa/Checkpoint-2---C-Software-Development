@@ -50,6 +50,49 @@ dotnet ef migrations add NomeDaMigration --project ./sources/ExpenseHub.Api --ou
 
 Para começar do zero, pare a API e apague `expensehub.db`, `expensehub.db-shm` e `expensehub.db-wal`.
 
+## Autenticação
+
+A API usa ASP.NET Core Identity com o token bearer do próprio Identity. O token é
+opaco, protegido pelo Data Protection do ASP.NET Core, então não existe chave de
+assinatura para guardar em configuração. A senha é armazenada só como hash pelo Identity.
+
+### Admin inicial
+
+Ao iniciar, a API cria as roles `Admin`, `Employee`, `Approver`, `Finance` e `Auditor`
+e uma única conta Admin. Nenhum outro usuário é criado pelo seed. Rodar de novo não
+duplica nada: role existente é mantida e, se a conta do Admin já existe, o seed não mexe nela.
+
+O e-mail fica em `Seed:Admin:Email` no `appsettings.json`. A senha não é versionada;
+configure antes do primeiro start com User Secrets:
+
+```shell
+dotnet user-secrets set "Seed:Admin:Password" "<senha-forte>" --project ./sources/ExpenseHub.Api
+```
+
+ou pela variável de ambiente `Seed__Admin__Password`. A senha precisa seguir a política
+padrão do Identity: 6 caracteres ou mais, com maiúscula, minúscula, número e símbolo.
+Sem ela a API não sobe e avisa qual chave falta.
+
+### Login
+
+`POST /login` com `{"email": "...", "password": "..."}` devolve:
+
+```json
+{ "tokenType": "Bearer", "accessToken": "...", "expiresIn": 3600, "refreshToken": "..." }
+```
+
+Envie `Authorization: Bearer <accessToken>` nas rotas protegidas. `GET /me` mostra
+o id e as roles que estão no token atual.
+
+| Situação | Resposta |
+|---|---|
+| E-mail inexistente ou senha errada | `401`, mesma mensagem nos dois casos |
+| 5 senhas erradas seguidas | `401` com conta bloqueada por 5 minutos |
+| Rota protegida sem token ou com token inválido | `401` |
+| Token válido sem a role exigida | `403` |
+
+Todas as respostas de erro seguem `ProblemDetails`.
+
 ## Como executar
 
 ```shell

@@ -1,4 +1,5 @@
 using ExpenseHub.Api.Domain;
+using ExpenseHub.Api.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -19,6 +20,11 @@ internal sealed class ExpenseConfiguration : IEntityTypeConfiguration<Expense>
 
         // duas decisões simultâneas no mesmo reembolso: a segunda falha no save em vez de duplicar histórico
         builder.Property(expense => expense.ConcurrencyStamp).IsConcurrencyToken();
+
+        builder.HasOne<ApplicationUser>()
+            .WithMany()
+            .HasForeignKey(expense => expense.OwnerId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(expense => expense.Category)
             .WithMany()
