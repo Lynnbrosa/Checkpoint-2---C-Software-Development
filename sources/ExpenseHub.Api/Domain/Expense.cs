@@ -127,6 +127,11 @@ internal sealed class Expense
         return changes;
     }
 
+    public void Submit(string actorId, DateTime nowUtc)
+    {
+        Record(ExpenseAction.Submitted, actorId, nowUtc, NextStatusFor(ExpenseAction.Submitted));
+    }
+
     private ExpenseStatus NextStatusFor(ExpenseAction action)
     {
         if (!ExpenseWorkflow.TryGetNextStatus(Status, action, out ExpenseStatus next))

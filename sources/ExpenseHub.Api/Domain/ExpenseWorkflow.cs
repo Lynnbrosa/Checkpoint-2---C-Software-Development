@@ -8,6 +8,7 @@ internal static class ExpenseWorkflow
         ExpenseStatus? target = (current, action) switch
         {
             (ExpenseStatus.Draft, ExpenseAction.Updated) => ExpenseStatus.Draft,
+            (ExpenseStatus.Draft, ExpenseAction.Submitted) => ExpenseStatus.Submitted,
             _ => null,
         };
 

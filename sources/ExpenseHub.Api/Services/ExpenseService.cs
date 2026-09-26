@@ -111,6 +111,40 @@ internal sealed class ExpenseService : IExpenseService
         return new ServiceResult<ExpenseResponse>(expense.ToResponse());
     }
 
+    public async Task<ServiceResult<ExpenseResponse>> SubmitAsync(
+        Guid id,
+        UserContext user,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+
+        if (!user.IsInRole(Roles.Employee))
+        {
+            return Fail(ServiceError.Forbidden("Somente Employee envia reembolsos."));
+        }
+
+        string userId = user.Id;
+        Expense? expense = await _repository.FindAsync(id, candidate => candidate.OwnerId == userId, cancellationToken);
+        if (expense is null)
+        {
+            return Fail(NotFound());
+        }
+
+        // enviar de novo cai aqui: 409 e nenhum histórico novo
+        if (!expense.CanApply(ExpenseAction.Submitted))
+        {
+            return Fail(ServiceError.Conflict($"Só rascunhos podem ser enviados. Estado atual: {expense.Status}."));
+        }
+
+        expense.Submit(user.Id, UtcNow());
+        if (!await _repository.TrySaveChangesAsync(cancellationToken))
+        {
+            return Fail(ConcurrentChange());
+        }
+
+        return new ServiceResult<ExpenseResponse>(expense.ToResponse());
+    }
+
     private ServiceError? Validate(ExpenseDraftRequest request)
     {
         if (!ExpenseRules.IsValidDescription(request.Description))

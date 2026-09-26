@@ -13,7 +13,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace ExpenseHub.Api.Controllers;
 
 /// <summary>
-/// Rascunhos de reembolso do usuário autenticado.
+/// Reembolsos do usuário autenticado: criação, edição e envio.
 /// </summary>
 [ApiController]
 [Route("api/expenses")]
@@ -60,6 +60,21 @@ public sealed class ExpensesController : ControllerBase
     public async Task<IActionResult> Update(Guid id, ExpenseDraftRequest request, CancellationToken cancellationToken)
     {
         ServiceResult<ExpenseResponse> result = await _expenses.UpdateAsync(id, request, CurrentUser, cancellationToken);
+        return this.ToActionResult(result, Ok);
+    }
+
+    /// <summary>Envia um rascunho próprio para aprovação.</summary>
+    /// <param name="id">Identificador do reembolso.</param>
+    /// <param name="cancellationToken">Cancelamento da requisição.</param>
+    /// <returns>Reembolso em <c>Submitted</c>.</returns>
+    [HttpPost("{id:guid}/submit")]
+    [Authorize(Roles = Roles.Employee)]
+    [ProducesResponseType<ExpenseResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Submit(Guid id, CancellationToken cancellationToken)
+    {
+        ServiceResult<ExpenseResponse> result = await _expenses.SubmitAsync(id, CurrentUser, cancellationToken);
         return this.ToActionResult(result, Ok);
     }
 }
