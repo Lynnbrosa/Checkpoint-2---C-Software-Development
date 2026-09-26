@@ -1,6 +1,9 @@
 @ExpenseHub_Api_HostAddress = http://localhost:5245
 # troque pelo valor configurado em Seed:Admin:Password (não commite a senha real)
 @adminPassword = <senha do seed>
+# usuário comum já cadastrado e com a role Employee dada pelo Admin
+@employeeEmail = funcionario@expensehub.local
+@employeePassword = <senha do funcionario>
 
 GET {{ExpenseHub_Api_HostAddress}}/health
 Accept: application/json
@@ -24,3 +27,89 @@ Authorization: Bearer {{adminToken}}
 
 ### Sem token: 401
 GET {{ExpenseHub_Api_HostAddress}}/me
+
+### Login de um Employee
+# @name employeeLogin
+POST {{ExpenseHub_Api_HostAddress}}/login
+Content-Type: application/json
+
+{
+  "email": "{{employeeEmail}}",
+  "password": "{{employeePassword}}"
+}
+
+###
+@employeeToken = {{employeeLogin.response.body.$.accessToken}}
+
+### Criar rascunho
+# @name createExpense
+POST {{ExpenseHub_Api_HostAddress}}/api/expenses
+Authorization: Bearer {{employeeToken}}
+Content-Type: application/json
+
+{
+  "description": "Táxi do aeroporto até o cliente",
+  "amount": 87.50,
+  "expenseDate": "2026-09-20",
+  "categoryId": 1
+}
+
+###
+@expenseId = {{createExpense.response.body.$.id}}
+
+### Tentar informar o dono: 400
+POST {{ExpenseHub_Api_HostAddress}}/api/expenses
+Authorization: Bearer {{employeeToken}}
+Content-Type: application/json
+
+{
+  "description": "Táxi do aeroporto até o cliente",
+  "amount": 87.50,
+  "expenseDate": "2026-09-20",
+  "categoryId": 1,
+  "ownerId": "outro-usuario"
+}
+
+### Valor, descrição e data inválidos: 400
+POST {{ExpenseHub_Api_HostAddress}}/api/expenses
+Authorization: Bearer {{employeeToken}}
+Content-Type: application/json
+
+{
+  "description": "curta",
+  "amount": 0,
+  "expenseDate": "2999-01-01",
+  "categoryId": 1
+}
+
+### Editar o rascunho
+PUT {{ExpenseHub_Api_HostAddress}}/api/expenses/{{expenseId}}
+Authorization: Bearer {{employeeToken}}
+Content-Type: application/json
+
+{
+  "description": "Táxi do aeroporto até o escritório do cliente",
+  "amount": 92.30,
+  "expenseDate": "2026-09-20",
+  "categoryId": 1
+}
+
+### Listar conforme o perfil
+GET {{ExpenseHub_Api_HostAddress}}/api/expenses
+Authorization: Bearer {{employeeToken}}
+
+### Detalhe
+GET {{ExpenseHub_Api_HostAddress}}/api/expenses/{{expenseId}}
+Authorization: Bearer {{employeeToken}}
+
+### Enviar para aprovação
+POST {{ExpenseHub_Api_HostAddress}}/api/expenses/{{expenseId}}/submit
+Authorization: Bearer {{employeeToken}}
+
+### Enviar de novo: 409
+POST {{ExpenseHub_Api_HostAddress}}/api/expenses/{{expenseId}}/submit
+Authorization: Bearer {{employeeToken}}
+
+### Admin sem outra role não lê reembolso: 403
+GET {{ExpenseHub_Api_HostAddress}}/api/expenses
+Authorization: Bearer {{adminToken}}

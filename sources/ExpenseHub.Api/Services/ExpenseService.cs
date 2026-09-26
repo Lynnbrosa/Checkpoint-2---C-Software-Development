@@ -72,11 +72,11 @@ internal sealed class ExpenseService : IExpenseService
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        ArgumentNullException.ThrowIfNull(user);
 
-        if (!user.IsInRole(Roles.Employee))
+        ServiceResult<Expense> loaded = await _repository.LoadForAsync(id, user, ExpenseOperation.Edit, cancellationToken);
+        if (!loaded.Succeeded)
         {
-            return Fail(ServiceError.Forbidden("Somente Employee edita reembolsos."));
+            return Fail(loaded.Error);
         }
 
         ServiceError? invalid = Validate(request);
@@ -85,14 +85,7 @@ internal sealed class ExpenseService : IExpenseService
             return Fail(invalid);
         }
 
-        // rascunho de outra pessoa não existe pra quem pergunta: 404, não 403
-        string userId = user.Id;
-        Expense? expense = await _repository.FindAsync(id, candidate => candidate.OwnerId == userId, cancellationToken);
-        if (expense is null)
-        {
-            return Fail(NotFound());
-        }
-
+        Expense expense = loaded.Value;
         if (!expense.CanApply(ExpenseAction.Updated))
         {
             return Fail(ServiceError.Conflict($"Só rascunhos podem ser editados. Estado atual: {expense.Status}."));
@@ -118,21 +111,14 @@ internal sealed class ExpenseService : IExpenseService
         UserContext user,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(user);
-
-        if (!user.IsInRole(Roles.Employee))
+        ServiceResult<Expense> loaded = await _repository.LoadForAsync(id, user, ExpenseOperation.Submit, cancellationToken);
+        if (!loaded.Succeeded)
         {
-            return Fail(ServiceError.Forbidden("Somente Employee envia reembolsos."));
-        }
-
-        string userId = user.Id;
-        Expense? expense = await _repository.FindAsync(id, candidate => candidate.OwnerId == userId, cancellationToken);
-        if (expense is null)
-        {
-            return Fail(NotFound());
+            return Fail(loaded.Error);
         }
 
         // enviar de novo cai aqui: 409 e nenhum histórico novo
+        Expense expense = loaded.Value;
         if (!expense.CanApply(ExpenseAction.Submitted))
         {
             return Fail(ServiceError.Conflict($"Só rascunhos podem ser enviados. Estado atual: {expense.Status}."));
