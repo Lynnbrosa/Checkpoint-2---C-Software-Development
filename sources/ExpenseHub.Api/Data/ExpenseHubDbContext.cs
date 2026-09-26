@@ -1,11 +1,13 @@
 using System;
 using ExpenseHub.Api.Data.Configurations;
 using ExpenseHub.Api.Domain;
+using ExpenseHub.Api.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace ExpenseHub.Api.Data;
 
-internal sealed class ExpenseHubDbContext : DbContext
+internal sealed class ExpenseHubDbContext : IdentityDbContext<ApplicationUser>
 {
     public ExpenseHubDbContext(DbContextOptions<ExpenseHubDbContext> options)
         : base(options)
@@ -24,6 +26,7 @@ internal sealed class ExpenseHubDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        modelBuilder.ApplyConfiguration(new ApplicationUserConfiguration());
         modelBuilder.ApplyConfiguration(new ExpenseCategoryConfiguration());
         modelBuilder.ApplyConfiguration(new ExpenseConfiguration());
         modelBuilder.ApplyConfiguration(new ExpenseHistoryConfiguration());

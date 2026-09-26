@@ -1,4 +1,5 @@
 using ExpenseHub.Api.Domain;
+using ExpenseHub.Api.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -12,5 +13,10 @@ internal sealed class PaymentRecordConfiguration : IEntityTypeConfiguration<Paym
         builder.HasKey(payment => payment.Id);
         builder.Property(payment => payment.Amount).HasPrecision(12, 2);
         builder.Property(payment => payment.PaidById).IsRequired().HasMaxLength(450);
+
+        builder.HasOne<ApplicationUser>()
+            .WithMany()
+            .HasForeignKey(payment => payment.PaidById)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

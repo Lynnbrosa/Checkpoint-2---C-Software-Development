@@ -1,4 +1,5 @@
 using ExpenseHub.Api.Domain;
+using ExpenseHub.Api.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -16,5 +17,10 @@ internal sealed class ExpenseHistoryConfiguration : IEntityTypeConfiguration<Exp
         builder.Property(entry => entry.ToStatus).HasConversion<string>().HasMaxLength(20);
         builder.Property(entry => entry.Justification).HasMaxLength(500);
         builder.HasIndex(entry => new { entry.ExpenseId, entry.OccurredAt });
+
+        builder.HasOne<ApplicationUser>()
+            .WithMany()
+            .HasForeignKey(entry => entry.ActorId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
