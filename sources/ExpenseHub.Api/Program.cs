@@ -1,6 +1,9 @@
+using System;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using ExpenseHub.Api.Data;
 using ExpenseHub.Api.Identity;
+using ExpenseHub.Api.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,11 +16,21 @@ internal static class Program
     public static async Task Main(string[] args)
     {
         WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
-        builder.Services.AddControllers();
+        builder.Services.AddControllers()
+            .AddJsonOptions(options =>
+            {
+                // campo fora do contrato (ownerId, status, createdAt...) vira 400 em vez de ser ignorado
+                options.JsonSerializerOptions.UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow;
+                options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+            });
         builder.Services.AddProblemDetails();
         builder.Services.AddOpenApi();
         builder.Services.AddExpenseHubDatabase(builder.Configuration, builder.Environment);
         builder.Services.AddExpenseHubIdentity(builder.Configuration);
+
+        builder.Services.AddSingleton(TimeProvider.System);
+        builder.Services.AddScoped<IExpenseRepository, EfExpenseRepository>();
+        builder.Services.AddScoped<IExpenseService, ExpenseService>();
 
         WebApplication app = builder.Build();
 
