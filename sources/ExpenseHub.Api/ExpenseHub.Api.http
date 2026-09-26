@@ -1,9 +1,26 @@
 @ExpenseHub_Api_HostAddress = http://localhost:5245
+# troque pelo valor configurado em Seed:Admin:Password (não commite a senha real)
+@adminPassword = <senha do seed>
 
 GET {{ExpenseHub_Api_HostAddress}}/health
 Accept: application/json
 
-###
+### Login do Admin
+# @name adminLogin
+POST {{ExpenseHub_Api_HostAddress}}/login
+Content-Type: application/json
 
-# Os endpoints do checkpoint estão definidos em docs/REQUISITOS.md.
-# Implemente e adicione aqui as requisições usadas para validar cada issue.
+{
+  "email": "admin@expensehub.local",
+  "password": "{{adminPassword}}"
+}
+
+###
+@adminToken = {{adminLogin.response.body.$.accessToken}}
+
+### Quem sou eu
+GET {{ExpenseHub_Api_HostAddress}}/me
+Authorization: Bearer {{adminToken}}
+
+### Sem token: 401
+GET {{ExpenseHub_Api_HostAddress}}/me
