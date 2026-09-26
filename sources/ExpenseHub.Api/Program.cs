@@ -1,3 +1,5 @@
+using System.Threading.Tasks;
+using ExpenseHub.Api.Data;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -7,10 +9,11 @@ namespace ExpenseHub.Api;
 
 internal static class Program
 {
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
         WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
         builder.Services.AddOpenApi();
+        builder.Services.AddExpenseHubDatabase(builder.Configuration, builder.Environment);
 
         WebApplication app = builder.Build();
 
@@ -22,6 +25,6 @@ internal static class Program
         app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
             .WithName("GetHealth");
 
-        app.Run();
+        await app.RunAsync();
     }
 }
