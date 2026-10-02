@@ -92,6 +92,13 @@ internal sealed class IdentityUserDirectory : IUserDirectory
             }
         }
 
+        // stamp novo derruba os tokens emitidos antes da troca (ver SecurityStampValidationMiddleware)
+        IdentityResult stamped = await _userManager.UpdateSecurityStampAsync(user);
+        if (!stamped.Succeeded)
+        {
+            return stamped;
+        }
+
         await transaction.CommitAsync(cancellationToken);
         return IdentityResult.Success;
     }

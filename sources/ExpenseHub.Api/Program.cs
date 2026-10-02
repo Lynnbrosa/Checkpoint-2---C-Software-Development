@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using ExpenseHub.Api.Data;
 using ExpenseHub.Api.Identity;
+using ExpenseHub.Api.Security;
 using ExpenseHub.Api.Services;
 using ExpenseHub.Api.Services.Users;
 using Microsoft.AspNetCore.Builder;
@@ -49,6 +50,7 @@ internal static class Program
         }
 
         app.UseAuthentication();
+        app.UseMiddleware<SecurityStampValidationMiddleware>();
         app.UseAuthorization();
 
         app.MapControllers();

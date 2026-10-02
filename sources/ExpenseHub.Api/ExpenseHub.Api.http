@@ -28,6 +28,52 @@ Authorization: Bearer {{adminToken}}
 ### Sem token: 401
 GET {{ExpenseHub_Api_HostAddress}}/me
 
+### Cadastro público (nasce sem role)
+# @name register
+POST {{ExpenseHub_Api_HostAddress}}/register
+Content-Type: application/json
+
+{
+  "email": "{{employeeEmail}}",
+  "password": "{{employeePassword}}",
+  "fullName": "Funcionário de Teste"
+}
+
+###
+@newUserId = {{register.response.body.$.id}}
+
+### Cadastro tentando escolher role: 400
+POST {{ExpenseHub_Api_HostAddress}}/register
+Content-Type: application/json
+
+{
+  "email": "espertinho@expensehub.local",
+  "password": "{{employeePassword}}",
+  "roles": ["Admin"]
+}
+
+### Admin lista usuários
+GET {{ExpenseHub_Api_HostAddress}}/api/admin/users
+Authorization: Bearer {{adminToken}}
+
+### Admin dá a role Employee (o usuário precisa logar de novo depois)
+PUT {{ExpenseHub_Api_HostAddress}}/api/admin/users/{{newUserId}}/roles
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "roles": ["Employee"]
+}
+
+### Role desconhecida: 400
+PUT {{ExpenseHub_Api_HostAddress}}/api/admin/users/{{newUserId}}/roles
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "roles": ["Chefe"]
+}
+
 ### Login de um Employee
 # @name employeeLogin
 POST {{ExpenseHub_Api_HostAddress}}/login
