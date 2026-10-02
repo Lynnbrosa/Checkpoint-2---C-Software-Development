@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using ExpenseHub.Api.Data;
 using ExpenseHub.Api.Identity;
 using ExpenseHub.Api.Services;
+using ExpenseHub.Api.Services.Users;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -31,6 +32,8 @@ internal static class Program
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddScoped<IExpenseRepository, EfExpenseRepository>();
         builder.Services.AddScoped<IExpenseService, ExpenseService>();
+        builder.Services.AddScoped<IUserDirectory, IdentityUserDirectory>();
+        builder.Services.AddScoped<IAccountService, AccountService>();
 
         WebApplication app = builder.Build();
 
