@@ -187,6 +187,42 @@ A proteção contra decisão simultânea é concorrência otimista: o reembolso 
 `ConcurrencyStamp` que muda a cada transição, e o `UPDATE` só passa se o valor lido
 ainda for o do banco.
 
+## Pagamento e histórico
+
+| Método e rota | Quem pode | O que faz |
+|---|---|---|
+| `POST /api/expenses/{id}/pay` | Finance que não é o dono | `Approved` → `Paid` e cria o `PaymentRecord` |
+| `GET /api/expenses/{id}/history` | Employee, Approver, Finance, Auditor | Histórico, com a mesma visibilidade do reembolso |
+
+O pagamento é simulado: não existe gateway. O `PaymentRecord` guarda o valor aprovado,
+quem pagou e quando, tudo vindo do token e do relógio do servidor. O corpo da requisição
+é ignorado.
+
+| Situação | Resposta |
+|---|---|
+| `Submitted`, `Rejected` ou `Paid` | `409`, sem pagamento nem histórico novos |
+| Finance pagando o próprio reembolso (mesmo sendo Employee também) | `403` |
+| Quem não tem a role Finance, incluindo o Auditor | `403` |
+| Rascunho de outra pessoa ou id inexistente | `404` |
+
+### O que entra no histórico
+
+| Ação | Estado anterior → novo | Extra |
+|---|---|---|
+| `Created` | — → `Draft` | |
+| `Updated` | `Draft` → `Draft` | `changes`: campos alterados com valor antigo e novo |
+| `Submitted` | `Draft` → `Submitted` | |
+| `Approved` | `Submitted` → `Approved` | |
+| `Rejected` | `Submitted` → `Rejected` | `justification` |
+| `Paid` | `Approved` → `Paid` | |
+
+Toda entrada tem ator e instante em UTC. A mudança de estado, o `PaymentRecord` e a
+entrada de histórico são adicionados ao mesmo agregado e gravados num único
+`SaveChanges`, que o EF Core executa numa transação: ou entra tudo, ou nada.
+
+O histórico só aparece para quem enxerga o reembolso. Um Approver, por exemplo, não vê
+o histórico de um reembolso já pago (`404`), igual ao detalhe.
+
 ## Matriz de acesso
 
 A matriz de [docs/MATRIZ-AUTORIZACAO.md](docs/MATRIZ-AUTORIZACAO.md) está em

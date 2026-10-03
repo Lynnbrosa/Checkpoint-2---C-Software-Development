@@ -35,6 +35,9 @@ public sealed class ExpenseResponse
     /// <summary>Justificativa, preenchida quando o reembolso foi reprovado.</summary>
     public string? RejectionReason { get; init; }
 
+    /// <summary>Pagamento, preenchido quando o reembolso está em <c>Paid</c>.</summary>
+    public PaymentResponse? Payment { get; init; }
+
     /// <summary>Criação, em UTC.</summary>
     public required DateTime CreatedAt { get; init; }
 

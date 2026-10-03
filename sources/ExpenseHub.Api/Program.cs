@@ -34,6 +34,8 @@ internal static class Program
         builder.Services.AddScoped<IExpenseRepository, EfExpenseRepository>();
         builder.Services.AddScoped<IExpenseService, ExpenseService>();
         builder.Services.AddScoped<IExpenseDecisionService, ExpenseDecisionService>();
+        builder.Services.AddScoped<IExpensePaymentService, ExpensePaymentService>();
+        builder.Services.AddScoped<IExpenseHistoryService, ExpenseHistoryService>();
         builder.Services.AddScoped<IUserDirectory, IdentityUserDirectory>();
         builder.Services.AddScoped<IAccountService, AccountService>();
         builder.Services.AddScoped<IUserAdministrationService, UserAdministrationService>();

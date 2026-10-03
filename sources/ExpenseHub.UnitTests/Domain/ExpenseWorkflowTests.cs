@@ -11,6 +11,7 @@ internal sealed class ExpenseWorkflowTests
     [DataRow(ExpenseStatus.Draft, ExpenseAction.Submitted, ExpenseStatus.Submitted)]
     [DataRow(ExpenseStatus.Submitted, ExpenseAction.Approved, ExpenseStatus.Approved)]
     [DataRow(ExpenseStatus.Submitted, ExpenseAction.Rejected, ExpenseStatus.Rejected)]
+    [DataRow(ExpenseStatus.Approved, ExpenseAction.Paid, ExpenseStatus.Paid)]
     public void TryGetNextStatus_AllowedTransition_ReturnsNextStatus(
         ExpenseStatus current,
         ExpenseAction action,
@@ -38,6 +39,9 @@ internal sealed class ExpenseWorkflowTests
     [DataRow(ExpenseStatus.Rejected, ExpenseAction.Rejected)]
     [DataRow(ExpenseStatus.Paid, ExpenseAction.Approved)]
     [DataRow(ExpenseStatus.Paid, ExpenseAction.Rejected)]
+    [DataRow(ExpenseStatus.Submitted, ExpenseAction.Paid)]
+    [DataRow(ExpenseStatus.Rejected, ExpenseAction.Paid)]
+    [DataRow(ExpenseStatus.Paid, ExpenseAction.Paid)]
     [DataRow(ExpenseStatus.Approved, ExpenseAction.Updated)]
     [DataRow(ExpenseStatus.Rejected, ExpenseAction.Updated)]
     [DataRow(ExpenseStatus.Paid, ExpenseAction.Updated)]

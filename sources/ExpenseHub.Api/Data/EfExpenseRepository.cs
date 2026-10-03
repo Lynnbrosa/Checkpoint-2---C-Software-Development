@@ -25,6 +25,7 @@ internal sealed class EfExpenseRepository : IExpenseRepository
     public Task<Expense?> FindAsync(Guid id, Expression<Func<Expense, bool>> scope, CancellationToken cancellationToken) =>
         _context.Expenses
             .Include(expense => expense.Category)
+            .Include(expense => expense.Payment)
             .Where(scope)
             .FirstOrDefaultAsync(expense => expense.Id == id, cancellationToken);
 
@@ -34,9 +35,18 @@ internal sealed class EfExpenseRepository : IExpenseRepository
         await _context.Expenses
             .AsNoTracking()
             .Include(expense => expense.Category)
+            .Include(expense => expense.Payment)
             .Where(scope)
             .OrderByDescending(expense => expense.CreatedAt)
             .ThenBy(expense => expense.Id)
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<ExpenseHistory>> ListHistoryAsync(Guid expenseId, CancellationToken cancellationToken) =>
+        await _context.ExpenseHistoryEntries
+            .AsNoTracking()
+            .Where(entry => entry.ExpenseId == expenseId)
+            .OrderBy(entry => entry.OccurredAt)
+            .ThenBy(entry => entry.Id)
             .ToListAsync(cancellationToken);
 
     public void Add(Expense expense) => _context.Expenses.Add(expense);

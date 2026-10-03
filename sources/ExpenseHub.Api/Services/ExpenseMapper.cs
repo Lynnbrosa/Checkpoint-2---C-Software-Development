@@ -16,6 +16,14 @@ internal static class ExpenseMapper
         ExpenseDate = expense.ExpenseDate,
         Status = expense.Status,
         RejectionReason = expense.RejectionReason,
+        Payment = expense.Payment is null
+            ? null
+            : new PaymentResponse
+            {
+                Amount = expense.Payment.Amount,
+                PaidById = expense.Payment.PaidById,
+                PaidAt = expense.Payment.PaidAt,
+            },
         CreatedAt = expense.CreatedAt,
         UpdatedAt = expense.UpdatedAt,
     };

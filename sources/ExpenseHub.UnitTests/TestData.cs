@@ -45,6 +45,13 @@ internal static class TestData
         return expense;
     }
 
+    public static Expense Paid(UserContext owner)
+    {
+        Expense expense = Approved(owner);
+        expense.Pay("finance-seed", Now.UtcDateTime.AddHours(-1));
+        return expense;
+    }
+
     public static Expense Rejected(UserContext owner)
     {
         Expense expense = Submitted(owner);

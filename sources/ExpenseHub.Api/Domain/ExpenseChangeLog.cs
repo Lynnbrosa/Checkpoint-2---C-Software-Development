@@ -9,4 +9,9 @@ internal static class ExpenseChangeLog
     private static readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web);
 
     public static string Serialize(IReadOnlyList<ExpenseFieldChange> changes) => JsonSerializer.Serialize(changes, _jsonOptions);
+
+    public static IReadOnlyList<ExpenseFieldChange> Deserialize(string? changes) =>
+        string.IsNullOrEmpty(changes)
+            ? []
+            : JsonSerializer.Deserialize<List<ExpenseFieldChange>>(changes, _jsonOptions) ?? [];
 }
