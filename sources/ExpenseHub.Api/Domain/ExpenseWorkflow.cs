@@ -9,6 +9,7 @@ internal static class ExpenseWorkflow
         {
             (ExpenseStatus.Draft, ExpenseAction.Updated) => ExpenseStatus.Draft,
             (ExpenseStatus.Draft, ExpenseAction.Submitted) => ExpenseStatus.Submitted,
+            (ExpenseStatus.Submitted, ExpenseAction.Approved) => ExpenseStatus.Approved,
             _ => null,
         };
 
