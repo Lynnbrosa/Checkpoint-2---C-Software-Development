@@ -93,6 +93,43 @@ o id e as roles que estão no token atual.
 
 Todas as respostas de erro seguem `ProblemDetails`.
 
+## Usuários e roles
+
+`POST /register` é público e cria o usuário **sem nenhuma role**:
+
+```json
+{ "email": "ana@empresa.com", "password": "<senha>", "fullName": "Ana Souza" }
+```
+
+O contrato não tem campo de role; mandar `roles` (ou qualquer campo extra) devolve `400`.
+E-mail já cadastrado devolve `409` e senha fora da política do Identity devolve `400`.
+Um usuário sem role consegue fazer login, mas recebe `403` em todas as rotas funcionais.
+
+Quem dá role é o Admin:
+
+| Método e rota | O que faz |
+|---|---|
+| `GET /api/admin/users` | Lista usuários com as roles de cada um (uma consulta só) |
+| `PUT /api/admin/users/{id}/roles` | Substitui as roles do usuário |
+
+```json
+{ "roles": ["Employee", "Approver"] }
+```
+
+A lista é o conjunto final: o que não estiver nela é removido, e lista vazia tira todas.
+
+| Situação | Resposta |
+|---|---|
+| Role fora de `Admin`, `Employee`, `Approver`, `Finance`, `Auditor` (inclusive com outra caixa) | `400`, nada muda e nenhuma role é criada |
+| Usuário inexistente | `404` |
+| Admin tentando tirar a própria role `Admin` | `403` |
+| Quem não é Admin | `403` |
+
+**Depois de alterar roles o usuário precisa fazer login de novo.** O token bearer guarda
+as roles do momento do login. A troca de roles atualiza o security stamp do usuário, e o
+`SecurityStampValidationMiddleware` recusa com `401` qualquer token emitido antes disso.
+O novo `POST /login` já traz as roles atualizadas. O custo é uma consulta por requisição autenticada.
+
 ## Reembolsos
 
 | Método e rota | Quem pode | O que faz |

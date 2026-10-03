@@ -5,6 +5,8 @@ using ExpenseHub.Api.Contracts.Requests;
 using ExpenseHub.Api.Contracts.Responses;
 using ExpenseHub.Api.Identity;
 using ExpenseHub.Api.Security;
+using ExpenseHub.Api.Services;
+using ExpenseHub.Api.Services.Users;
 using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -15,21 +17,41 @@ using IdentitySignInResult = Microsoft.AspNetCore.Identity.SignInResult;
 namespace ExpenseHub.Api.Controllers;
 
 /// <summary>
-/// Autenticação por token bearer.
+/// Cadastro público e autenticação por token bearer.
 /// </summary>
 [ApiController]
 public sealed class AuthController : ControllerBase
 {
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly IAccountService _accounts;
 
     /// <summary>Cria o controller com os serviços do Identity.</summary>
     /// <param name="signInManager">Gerenciador de login do Identity.</param>
     /// <param name="userManager">Gerenciador de usuários do Identity.</param>
-    public AuthController(SignInManager<ApplicationUser> signInManager, UserManager<ApplicationUser> userManager)
+    /// <param name="accounts">Serviço de cadastro.</param>
+    public AuthController(
+        SignInManager<ApplicationUser> signInManager,
+        UserManager<ApplicationUser> userManager,
+        IAccountService accounts)
     {
         _signInManager = signInManager;
         _userManager = userManager;
+        _accounts = accounts;
+    }
+
+    /// <summary>Cadastra um usuário sem nenhuma role.</summary>
+    /// <param name="request">E-mail, senha e nome.</param>
+    /// <returns>Usuário criado.</returns>
+    [HttpPost("/register")]
+    [AllowAnonymous]
+    [ProducesResponseType<UserResponse>(StatusCodes.Status201Created)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Register(RegisterRequest request)
+    {
+        ServiceResult<UserResponse> result = await _accounts.RegisterAsync(request);
+        return this.ToActionResult(result, user => StatusCode(StatusCodes.Status201Created, user));
     }
 
     /// <summary>Autentica o usuário e devolve o token bearer.</summary>
