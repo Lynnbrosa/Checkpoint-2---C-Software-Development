@@ -37,4 +37,18 @@ internal static class TestData
         expense.Submit(owner.Id, Now.UtcDateTime.AddHours(-12));
         return expense;
     }
+
+    public static Expense Approved(UserContext owner)
+    {
+        Expense expense = Submitted(owner);
+        expense.Approve("approver-seed", Now.UtcDateTime.AddHours(-6));
+        return expense;
+    }
+
+    public static Expense Rejected(UserContext owner)
+    {
+        Expense expense = Submitted(owner);
+        expense.Reject("approver-seed", "Faltou o comprovante da despesa.", Now.UtcDateTime.AddHours(-6));
+        return expense;
+    }
 }

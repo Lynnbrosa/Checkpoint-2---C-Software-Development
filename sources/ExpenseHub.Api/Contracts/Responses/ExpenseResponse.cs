@@ -32,6 +32,9 @@ public sealed class ExpenseResponse
     /// <summary>Estado atual, definido só pelo servidor.</summary>
     public required ExpenseStatus Status { get; init; }
 
+    /// <summary>Justificativa, preenchida quando o reembolso foi reprovado.</summary>
+    public string? RejectionReason { get; init; }
+
     /// <summary>Criação, em UTC.</summary>
     public required DateTime CreatedAt { get; init; }
 

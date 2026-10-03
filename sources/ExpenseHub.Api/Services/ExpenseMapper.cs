@@ -15,6 +15,7 @@ internal static class ExpenseMapper
         Amount = expense.Amount,
         ExpenseDate = expense.ExpenseDate,
         Status = expense.Status,
+        RejectionReason = expense.RejectionReason,
         CreatedAt = expense.CreatedAt,
         UpdatedAt = expense.UpdatedAt,
     };

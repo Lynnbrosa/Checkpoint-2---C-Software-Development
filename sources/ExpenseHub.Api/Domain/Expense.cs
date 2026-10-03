@@ -132,6 +132,23 @@ internal sealed class Expense
         Record(ExpenseAction.Submitted, actorId, nowUtc, NextStatusFor(ExpenseAction.Submitted));
     }
 
+    public void Approve(string approverId, DateTime nowUtc)
+    {
+        Record(ExpenseAction.Approved, approverId, nowUtc, NextStatusFor(ExpenseAction.Approved));
+    }
+
+    public void Reject(string approverId, string justification, DateTime nowUtc)
+    {
+        if (!ExpenseRules.IsValidJustification(justification))
+        {
+            throw new ArgumentException("Justificativa fora do limite de 10 a 500 caracteres.", nameof(justification));
+        }
+
+        ExpenseStatus next = NextStatusFor(ExpenseAction.Rejected);
+        RejectionReason = justification;
+        Record(ExpenseAction.Rejected, approverId, nowUtc, next, justification: justification);
+    }
+
     private ExpenseStatus NextStatusFor(ExpenseAction action)
     {
         if (!ExpenseWorkflow.TryGetNextStatus(Status, action, out ExpenseStatus next))

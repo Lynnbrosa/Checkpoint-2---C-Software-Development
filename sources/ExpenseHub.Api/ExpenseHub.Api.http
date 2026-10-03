@@ -4,6 +4,9 @@
 # usuário comum já cadastrado e com a role Employee dada pelo Admin
 @employeeEmail = funcionario@expensehub.local
 @employeePassword = <senha do funcionario>
+# outro usuário, com a role Approver dada pelo Admin
+@approverEmail = aprovador@expensehub.local
+@approverPassword = <senha do aprovador>
 
 GET {{ExpenseHub_Api_HostAddress}}/health
 Accept: application/json
@@ -159,3 +162,50 @@ Authorization: Bearer {{employeeToken}}
 ### Admin sem outra role não lê reembolso: 403
 GET {{ExpenseHub_Api_HostAddress}}/api/expenses
 Authorization: Bearer {{adminToken}}
+
+### Login de um Approver
+# @name approverLogin
+POST {{ExpenseHub_Api_HostAddress}}/login
+Content-Type: application/json
+
+{
+  "email": "{{approverEmail}}",
+  "password": "{{approverPassword}}"
+}
+
+###
+@approverToken = {{approverLogin.response.body.$.accessToken}}
+
+### Approver lista os enviados
+GET {{ExpenseHub_Api_HostAddress}}/api/expenses
+Authorization: Bearer {{approverToken}}
+
+### Aprovar
+POST {{ExpenseHub_Api_HostAddress}}/api/expenses/{{expenseId}}/approve
+Authorization: Bearer {{approverToken}}
+
+### Aprovar de novo: 409
+POST {{ExpenseHub_Api_HostAddress}}/api/expenses/{{expenseId}}/approve
+Authorization: Bearer {{approverToken}}
+
+### Employee tentando aprovar: 403
+POST {{ExpenseHub_Api_HostAddress}}/api/expenses/{{expenseId}}/approve
+Authorization: Bearer {{employeeToken}}
+
+### Reprovar sem justificativa válida: 400 (use um reembolso Submitted)
+POST {{ExpenseHub_Api_HostAddress}}/api/expenses/{{expenseId}}/reject
+Authorization: Bearer {{approverToken}}
+Content-Type: application/json
+
+{
+  "justification": "curta"
+}
+
+### Reprovar com justificativa (use um reembolso Submitted)
+POST {{ExpenseHub_Api_HostAddress}}/api/expenses/{{expenseId}}/reject
+Authorization: Bearer {{approverToken}}
+Content-Type: application/json
+
+{
+  "justification": "Nota fiscal ilegível, reenviar com comprovante."
+}

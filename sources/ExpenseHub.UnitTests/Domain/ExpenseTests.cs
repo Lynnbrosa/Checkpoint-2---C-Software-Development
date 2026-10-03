@@ -36,6 +36,23 @@ internal sealed class ExpenseTests
     }
 
     [TestMethod]
+    public void Reject_WithBlankJustification_Throws()
+    {
+        Expense expense = TestData.Submitted(TestUsers.Employee);
+
+        Assert.ThrowsExactly<ArgumentException>(() => expense.Reject("approver-1", "          ", TestData.Now.UtcDateTime));
+        Assert.AreEqual(ExpenseStatus.Submitted, expense.Status);
+    }
+
+    [TestMethod]
+    public void Approve_OutsideSubmitted_Throws()
+    {
+        Expense expense = TestData.Draft(TestUsers.Employee);
+
+        Assert.ThrowsExactly<InvalidOperationException>(() => expense.Approve("approver-1", TestData.Now.UtcDateTime));
+    }
+
+    [TestMethod]
     public void UpdateDraft_ChangesConcurrencyStamp()
     {
         Expense expense = TestData.Draft(TestUsers.Employee);
