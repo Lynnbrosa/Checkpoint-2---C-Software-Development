@@ -7,6 +7,9 @@
 # outro usuário, com a role Approver dada pelo Admin
 @approverEmail = aprovador@expensehub.local
 @approverPassword = <senha do aprovador>
+# usuário com a role Finance
+@financeEmail = financeiro@expensehub.local
+@financePassword = <senha do financeiro>
 
 GET {{ExpenseHub_Api_HostAddress}}/health
 Accept: application/json
@@ -209,3 +212,36 @@ Content-Type: application/json
 {
   "justification": "Nota fiscal ilegível, reenviar com comprovante."
 }
+
+### Login do Finance
+# @name financeLogin
+POST {{ExpenseHub_Api_HostAddress}}/login
+Content-Type: application/json
+
+{
+  "email": "{{financeEmail}}",
+  "password": "{{financePassword}}"
+}
+
+###
+@financeToken = {{financeLogin.response.body.$.accessToken}}
+
+### Finance lista aprovados e pagos
+GET {{ExpenseHub_Api_HostAddress}}/api/expenses
+Authorization: Bearer {{financeToken}}
+
+### Pagar (reembolso Approved)
+POST {{ExpenseHub_Api_HostAddress}}/api/expenses/{{expenseId}}/pay
+Authorization: Bearer {{financeToken}}
+
+### Pagar de novo: 409
+POST {{ExpenseHub_Api_HostAddress}}/api/expenses/{{expenseId}}/pay
+Authorization: Bearer {{financeToken}}
+
+### Histórico visto pelo dono
+GET {{ExpenseHub_Api_HostAddress}}/api/expenses/{{expenseId}}/history
+Authorization: Bearer {{employeeToken}}
+
+### Histórico visto pelo Approver depois do pagamento: 404
+GET {{ExpenseHub_Api_HostAddress}}/api/expenses/{{expenseId}}/history
+Authorization: Bearer {{approverToken}}
