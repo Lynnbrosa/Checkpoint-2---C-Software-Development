@@ -149,6 +149,14 @@ internal sealed class Expense
         Record(ExpenseAction.Rejected, approverId, nowUtc, next, justification: justification);
     }
 
+    // pagamento simulado: registra quem pagou, quando e o valor aprovado, sem gateway
+    public void Pay(string financeId, DateTime nowUtc)
+    {
+        ExpenseStatus next = NextStatusFor(ExpenseAction.Paid);
+        Payment = new PaymentRecord(Id, Amount, financeId, nowUtc);
+        Record(ExpenseAction.Paid, financeId, nowUtc, next);
+    }
+
     private ExpenseStatus NextStatusFor(ExpenseAction action)
     {
         if (!ExpenseWorkflow.TryGetNextStatus(Status, action, out ExpenseStatus next))

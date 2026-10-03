@@ -4,6 +4,14 @@ namespace ExpenseHub.Api.Domain;
 
 internal sealed class PaymentRecord
 {
+    public PaymentRecord(Guid expenseId, decimal amount, string paidById, DateTime paidAt)
+    {
+        ExpenseId = expenseId;
+        Amount = amount;
+        PaidById = paidById;
+        PaidAt = paidAt;
+    }
+
     private PaymentRecord()
     {
     }
