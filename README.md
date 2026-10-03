@@ -157,6 +157,36 @@ Id, dono, estado, atores e horários são sempre do servidor. Mandar qualquer ca
 do contrato (`ownerId`, `status`, `createdAt`...) devolve `400`, em vez de ser ignorado.
 Editar um rascunho sem mudar nada devolve `200` e não gera histórico.
 
+## Aprovação e reprovação
+
+| Método e rota | Quem pode | O que faz |
+|---|---|---|
+| `POST /api/expenses/{id}/approve` | Approver que não é o dono | `Submitted` → `Approved` |
+| `POST /api/expenses/{id}/reject` | Approver que não é o dono | `Submitted` → `Rejected` |
+
+A reprovação exige justificativa de 10 a 500 caracteres (só espaços não vale):
+
+```json
+{ "justification": "Nota fiscal ilegível, reenviar com comprovante." }
+```
+
+A justificativa fica no reembolso (`rejectionReason`) e na entrada de histórico da
+reprovação. Quem decidiu e quando vêm do token e do relógio do servidor; o corpo não
+aceita ator nem horário.
+
+| Situação | Resposta |
+|---|---|
+| Employee, Finance, Auditor ou Admin sem a role Approver | `403` |
+| Approver decidindo sobre o próprio reembolso (mesmo sendo Employee também) | `403` |
+| Rascunho de outra pessoa ou id inexistente | `404` |
+| Reembolso já `Approved`, `Rejected` ou `Paid` | `409`, sem histórico novo |
+| Duas decisões ao mesmo tempo no mesmo reembolso | a segunda recebe `409` |
+| Justificativa vazia, curta ou longa | `400` |
+
+A proteção contra decisão simultânea é concorrência otimista: o reembolso tem um
+`ConcurrencyStamp` que muda a cada transição, e o `UPDATE` só passa se o valor lido
+ainda for o do banco.
+
 ## Matriz de acesso
 
 A matriz de [docs/MATRIZ-AUTORIZACAO.md](docs/MATRIZ-AUTORIZACAO.md) está em
