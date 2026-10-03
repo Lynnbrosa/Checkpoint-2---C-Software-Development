@@ -254,6 +254,56 @@ encontram qualquer reembolso que já saiu de rascunho. Assim, repetir uma aprova
 tentar pagar algo ainda `Submitted` responde `409`, como pede a tabela de transições.
 Rascunho de outra pessoa nunca aparece para ninguém além do dono e do Auditor: `404`.
 
+## Testes
+
+```shell
+dotnet test ./sources/ExpenseHub.slnx
+```
+
+São 193 testes unitários com MSTest, sem banco, rede ou serviço externo:
+
+- `Fakes/InMemoryExpenseRepository` troca o repositório do EF Core por listas em memória
+  e segue o mesmo contrato: o `Add` só vale depois do save e o filtro de escopo é
+  aplicado antes de devolver qualquer reembolso;
+- `Fakes/FakeUserDirectory` fica no lugar do `UserManager` do Identity;
+- `Fakes/FixedTimeProvider` fixa o relógio, então "hoje" e os horários do histórico
+  são sempre os mesmos;
+- nenhuma senha literal no código de teste: `TestSecrets` gera uma por execução.
+
+| Classe | O que cobre |
+|---|---|
+| `Domain/ExpenseWorkflowTests`, `Domain/ExpenseWorkflowTableTests` | tabela de transições inteira e estados finais |
+| `Domain/ExpenseTests` | invariantes da entidade |
+| `Services/ExpenseServiceDraftTests` | criação, validações, edição e dono vindo do token |
+| `Services/ExpenseServiceSubmitTests` | envio, repetição e edição depois de enviar |
+| `Services/ExpenseQueryTests` | listagem e detalhe por perfil |
+| `Services/ExpenseAccessPolicyTests`, `Services/ExpenseOwnershipTests` | matriz, roles acumuladas, `403` x `404` |
+| `Services/ExpenseDecisionServiceTests` | aprovação, reprovação, justificativa e autoaprovação |
+| `Services/ExpensePaymentServiceTests` | pagamento, registro e autopagamento |
+| `Services/ExpenseHistoryServiceTests` | conteúdo e visibilidade do histórico |
+| `Services/ExpenseLifecycleTests` | fluxo completo e repetição sem histórico duplicado |
+| `Services/AccountServiceTests`, `Services/UserAdministrationServiceTests` | cadastro sem role e administração de roles |
+| `Contracts/RequestValidationTests` | DataAnnotations dos DTOs e campos aceitos |
+
+Para conferir se a suíte pega regressão de verdade, introduzimos um defeito por vez
+no código da API e rodamos os testes. Todos foram detectados:
+
+| Defeito introduzido | Testes que falharam |
+|---|---:|
+| dono consegue aprovar ou pagar o próprio reembolso | 4 |
+| Finance passa a enxergar `Submitted` | 2 |
+| Employee passa a enxergar reembolsos de todos | 9 |
+| pagamento sem checar o estado | 5 |
+| R$ 0,01 deixa de ser aceito | 1 |
+| justificativa de 9 caracteres aceita | 1 |
+| transição sem gravar histórico | 10 |
+| `Rejected` passa a ser pagável | 5 |
+| data de amanhã aceita | 1 |
+| Admin consegue tirar a própria role Admin | 1 |
+| role desconhecida aceita | 3 |
+| cadastro já entrega a role Employee | 1 |
+| dono do reembolso não vem do token | 7 |
+
 ## Como executar
 
 ```shell
