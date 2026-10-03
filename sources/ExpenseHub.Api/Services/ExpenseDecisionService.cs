@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using ExpenseHub.Api.Contracts.Requests;
 using ExpenseHub.Api.Contracts.Responses;
 using ExpenseHub.Api.Domain;
 using ExpenseHub.Api.Security;
@@ -37,6 +38,37 @@ internal sealed class ExpenseDecisionService : IExpenseDecisionService
         }
 
         expense.Approve(user.Id, _timeProvider.GetUtcNow().UtcDateTime);
+        return await SaveAsync(expense, cancellationToken);
+    }
+
+    public async Task<ServiceResult<ExpenseResponse>> RejectAsync(
+        Guid id,
+        RejectExpenseRequest request,
+        UserContext user,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        ServiceResult<Expense> loaded = await _repository.LoadForAsync(id, user, ExpenseOperation.Decide, cancellationToken);
+        if (!loaded.Succeeded)
+        {
+            return Fail(loaded.Error);
+        }
+
+        if (!ExpenseRules.IsValidJustification(request.Justification))
+        {
+            return Fail(ServiceError.Validation(
+                nameof(RejectExpenseRequest.Justification),
+                "A justificativa deve ter entre 10 e 500 caracteres."));
+        }
+
+        Expense expense = loaded.Value;
+        if (!expense.CanApply(ExpenseAction.Rejected))
+        {
+            return Fail(NotAwaitingDecision(expense));
+        }
+
+        expense.Reject(user.Id, request.Justification, _timeProvider.GetUtcNow().UtcDateTime);
         return await SaveAsync(expense, cancellationToken);
     }
 

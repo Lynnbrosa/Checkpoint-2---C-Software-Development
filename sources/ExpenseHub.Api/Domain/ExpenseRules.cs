@@ -14,6 +14,9 @@ internal static class ExpenseRules
     public const decimal MinAmount = 0.01m;
     public const decimal MaxAmount = int.MaxValue;
 
+    public const int JustificationMinLength = 10;
+    public const int JustificationMaxLength = 500;
+
     public static bool IsValidDescription(string? description) =>
         !string.IsNullOrWhiteSpace(description)
         && description.Length >= DescriptionMinLength
@@ -22,4 +25,10 @@ internal static class ExpenseRules
     public static bool IsValidAmount(decimal amount) => amount >= MinAmount && amount <= MaxAmount;
 
     public static bool IsValidExpenseDate(DateOnly expenseDate, DateOnly today) => expenseDate <= today;
+
+    // espaço em branco não conta como justificativa
+    public static bool IsValidJustification(string? justification) =>
+        !string.IsNullOrWhiteSpace(justification)
+        && justification.Length >= JustificationMinLength
+        && justification.Length <= JustificationMaxLength;
 }

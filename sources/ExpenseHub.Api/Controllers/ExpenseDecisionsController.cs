@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using ExpenseHub.Api.Contracts.Requests;
 using ExpenseHub.Api.Contracts.Responses;
 using ExpenseHub.Api.Identity;
 using ExpenseHub.Api.Security;
@@ -41,6 +42,24 @@ public sealed class ExpenseDecisionsController : ControllerBase
     {
         ServiceResult<ExpenseResponse> result =
             await _decisions.ApproveAsync(id, UserContext.FromPrincipal(User), cancellationToken);
+        return this.ToActionResult(result, Ok);
+    }
+
+    /// <summary>Reprova um reembolso <c>Submitted</c>. A justificativa é obrigatória.</summary>
+    /// <param name="id">Identificador do reembolso.</param>
+    /// <param name="request">Justificativa, entre 10 e 500 caracteres.</param>
+    /// <param name="cancellationToken">Cancelamento da requisição.</param>
+    /// <returns>Reembolso em <c>Rejected</c>.</returns>
+    [HttpPost("reject")]
+    [ProducesResponseType<ExpenseResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Reject(Guid id, RejectExpenseRequest request, CancellationToken cancellationToken)
+    {
+        ServiceResult<ExpenseResponse> result =
+            await _decisions.RejectAsync(id, request, UserContext.FromPrincipal(User), cancellationToken);
         return this.ToActionResult(result, Ok);
     }
 }
