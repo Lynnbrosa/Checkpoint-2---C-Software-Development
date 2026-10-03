@@ -21,9 +21,6 @@ namespace ExpenseHub.Api.Controllers;
 [Authorize]
 public sealed class ExpensesController : ControllerBase
 {
-    // admin sozinho não lê reembolso; precisa ter uma dessas roles também
-    private const string ReaderRoles = Roles.Employee + "," + Roles.Approver + "," + Roles.Finance + "," + Roles.Auditor;
-
     private readonly IExpenseService _expenses;
 
     /// <summary>Cria o controller.</summary>
@@ -71,7 +68,7 @@ public sealed class ExpensesController : ControllerBase
     /// <param name="cancellationToken">Cancelamento da requisição.</param>
     /// <returns>Reembolsos visíveis.</returns>
     [HttpGet]
-    [Authorize(Roles = ReaderRoles)]
+    [Authorize(Roles = Roles.ExpenseReaders)]
     [ProducesResponseType<IReadOnlyList<ExpenseResponse>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> List(CancellationToken cancellationToken)
@@ -85,7 +82,7 @@ public sealed class ExpensesController : ControllerBase
     /// <param name="cancellationToken">Cancelamento da requisição.</param>
     /// <returns>Reembolso ou 404.</returns>
     [HttpGet("{id:guid}")]
-    [Authorize(Roles = ReaderRoles)]
+    [Authorize(Roles = Roles.ExpenseReaders)]
     [ProducesResponseType<ExpenseResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Get(Guid id, CancellationToken cancellationToken)

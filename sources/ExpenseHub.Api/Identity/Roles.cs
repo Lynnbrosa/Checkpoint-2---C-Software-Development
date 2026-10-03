@@ -10,5 +10,8 @@ internal static class Roles
     public const string Finance = "Finance";
     public const string Auditor = "Auditor";
 
+    // quem consulta reembolso e histórico; Admin sozinho fica de fora
+    public const string ExpenseReaders = Employee + "," + Approver + "," + Finance + "," + Auditor;
+
     public static IReadOnlyList<string> All { get; } = [Admin, Employee, Approver, Finance, Auditor];
 }

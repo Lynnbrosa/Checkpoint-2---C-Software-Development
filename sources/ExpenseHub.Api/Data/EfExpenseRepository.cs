@@ -41,6 +41,14 @@ internal sealed class EfExpenseRepository : IExpenseRepository
             .ThenBy(expense => expense.Id)
             .ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<ExpenseHistory>> ListHistoryAsync(Guid expenseId, CancellationToken cancellationToken) =>
+        await _context.ExpenseHistoryEntries
+            .AsNoTracking()
+            .Where(entry => entry.ExpenseId == expenseId)
+            .OrderBy(entry => entry.OccurredAt)
+            .ThenBy(entry => entry.Id)
+            .ToListAsync(cancellationToken);
+
     public void Add(Expense expense) => _context.Expenses.Add(expense);
 
     public async Task<bool> TrySaveChangesAsync(CancellationToken cancellationToken)

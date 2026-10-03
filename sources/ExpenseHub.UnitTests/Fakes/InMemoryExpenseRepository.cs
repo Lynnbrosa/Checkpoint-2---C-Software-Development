@@ -41,6 +41,13 @@ internal sealed class InMemoryExpenseRepository : IExpenseRepository
         Task.FromResult<IReadOnlyList<Expense>>(
             _saved.AsQueryable().Where(scope).OrderByDescending(expense => expense.CreatedAt).ToList());
 
+    public Task<IReadOnlyList<ExpenseHistory>> ListHistoryAsync(Guid expenseId, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<ExpenseHistory>>(
+            _saved.Where(expense => expense.Id == expenseId)
+                .SelectMany(expense => expense.History)
+                .OrderBy(entry => entry.OccurredAt)
+                .ToList());
+
     public void Add(Expense expense) => _pending.Add(expense);
 
     public Task<bool> TrySaveChangesAsync(CancellationToken cancellationToken)

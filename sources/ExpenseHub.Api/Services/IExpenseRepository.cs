@@ -17,6 +17,9 @@ internal interface IExpenseRepository
 
     Task<IReadOnlyList<Expense>> ListAsync(Expression<Func<Expense, bool>> scope, CancellationToken cancellationToken);
 
+    // chamar só depois de confirmar que o reembolso é visível pro usuário
+    Task<IReadOnlyList<ExpenseHistory>> ListHistoryAsync(Guid expenseId, CancellationToken cancellationToken);
+
     void Add(Expense expense);
 
     // false quando outra requisição alterou o mesmo reembolso antes (concorrência otimista)
