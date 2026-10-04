@@ -10,15 +10,48 @@ Cópia do enunciado em [docs/ENUNCIADO.md](docs/ENUNCIADO.md) e dos contratos em
 
 | Nome | RM | GitHub |
 |---|---|---|
-| _preencher_ | _preencher_ | _preencher_ |
-| _preencher_ | _preencher_ | _preencher_ |
-| _preencher_ | _preencher_ | _preencher_ |
+| Lynn Bueno Rosa | 551102 | [@Lynnbrosa](https://github.com/Lynnbrosa) |
+| Gustavo Moura | 555827 | [@gumoura82](https://github.com/gumoura82) |
+| Giovanne Zaniboni | 556223 | [@GiovanneZaniboni](https://github.com/GiovanneZaniboni) |
 
 ## Stack
 
 - .NET 10 e ASP.NET Core
 - Entity Framework Core 10 com SQLite
 - MSTest para os testes unitários
+
+## Como executar
+
+Pré-requisito: SDK do .NET 10.
+
+```shell
+dotnet restore ./sources/ExpenseHub.slnx
+dotnet build ./sources/ExpenseHub.slnx
+dotnet test ./sources/ExpenseHub.slnx
+```
+
+Antes do primeiro start, defina a senha do Admin inicial (fica fora do repositório):
+
+```shell
+dotnet user-secrets set "Seed:Admin:Password" "<senha-forte>" --project ./sources/ExpenseHub.Api
+dotnet run --project ./sources/ExpenseHub.Api/ExpenseHub.Api.csproj
+```
+
+A API sobe em `http://localhost:5245`, cria o banco SQLite, aplica as migrations e
+cria as roles e o Admin. `GET /health` responde `{"status":"ok"}`. Em Development o
+documento OpenAPI fica em `/openapi/v1.json`.
+
+O arquivo `sources/ExpenseHub.Api/ExpenseHub.Api.http` tem o roteiro completo de
+validação (cadastro, roles, rascunho, envio, aprovação, pagamento, histórico e os casos
+negativos). Ele roda no Visual Studio, no Rider e no VS Code com a extensão REST Client.
+Preencha as variáveis de senha no topo antes de usar e não commite senhas reais.
+
+Roteiro rápido:
+
+1. `POST /login` com o Admin.
+2. `POST /register` para cada pessoa (funcionário, aprovador, financeiro, auditor).
+3. `PUT /api/admin/users/{id}/roles` para dar as roles.
+4. Cada pessoa faz `POST /login` (de novo, se já tinha token) e segue o fluxo.
 
 ## Banco de dados
 
@@ -304,13 +337,49 @@ no código da API e rodamos os testes. Todos foram detectados:
 | cadastro já entrega a role Employee | 1 |
 | dono do reembolso não vem do token | 7 |
 
-## Como executar
+## Qualidade de código
+
+O workflow `code-quality` (`.github/workflows/build.yml`, do template) roda a cada push
+e publica o relatório no artefato `code-quality-report`. Para rodar o mesmo script
+localmente é preciso PowerShell 7; o Gitleaks é opcional fora do CI:
 
 ```shell
-dotnet restore ./sources/ExpenseHub.slnx
-dotnet build ./sources/ExpenseHub.slnx
-dotnet test ./sources/ExpenseHub.slnx
-dotnet run --project ./sources/ExpenseHub.Api/ExpenseHub.Api.csproj
+pwsh ./scripts/Invoke-CodeQuality.ps1
 ```
 
-A API sobe em `http://localhost:5245` e `GET /health` responde `{"status":"ok"}`.
+O relatório sai em `artifacts/code-quality/report.md` (pasta ignorada pelo Git).
+
+- build sem warnings de compilador, analisadores ou estilo;
+- nenhum analisador, severidade, workflow ou script do template foi alterado;
+- nenhum `#pragma` ou `NoWarn` no código escrito à mão (as migrations são geradas pelo EF);
+- DTOs com validação declarativa e nenhuma entidade recebida direto pela API;
+- nenhum segredo versionado: senha do Admin por User Secrets ou variável de ambiente.
+
+## Estrutura
+
+```text
+sources/
+├── ExpenseHub.Api/
+│   ├── Controllers/   rotas HTTP e [Authorize] por role
+│   ├── Contracts/     DTOs de entrada (Requests) e de saída (Responses)
+│   ├── Services/      regras de negócio, matriz de acesso e erros tipados
+│   ├── Domain/        entidades, tabela de transições e regras de campo
+│   ├── Data/          DbContext, mapeamentos, migrations e repositório do EF Core
+│   ├── Identity/      usuário, roles, seed do Admin e diretório de usuários
+│   └── Security/      contexto do usuário e validação do security stamp
+└── ExpenseHub.UnitTests/
+    ├── Fakes/         repositório, diretório de usuários e relógio em memória
+    ├── Domain/
+    ├── Services/
+    └── Contracts/
+```
+
+Os controllers não têm regra: montam o `UserContext` a partir do token, chamam o serviço
+e traduzem o `ServiceError` em `ProblemDetails` num lugar só (`ServiceResultExtensions`).
+
+## Processo
+
+Cada issue do backlog central virou uma branch (`i01-foundation-ef`, `i02-identity-auth`...)
+e uma pull request neste repositório, com título no formato `I06 — Ownership e matriz de acesso`
+e referência completa, por exemplo `Racass/checkpoint-csharpracass-expensehub#6`, sem
+palavras de fechamento automático. As issues originais continuam abertas.
