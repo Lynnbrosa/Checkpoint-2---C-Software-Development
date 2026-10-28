@@ -4,7 +4,7 @@ namespace ExpenseHub.UnitTests.Fakes;
 
 internal sealed class FixedTimeProvider : TimeProvider
 {
-    private readonly DateTimeOffset _now;
+    private DateTimeOffset _now;
 
     public FixedTimeProvider(DateTimeOffset now)
     {
@@ -15,4 +15,6 @@ internal sealed class FixedTimeProvider : TimeProvider
     public override TimeZoneInfo LocalTimeZone => TimeZoneInfo.Utc;
 
     public override DateTimeOffset GetUtcNow() => _now;
+
+    public void Advance(TimeSpan delta) => _now = _now.Add(delta);
 }
