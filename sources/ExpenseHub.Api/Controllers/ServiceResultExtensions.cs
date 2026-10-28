@@ -25,6 +25,29 @@ internal static class ServiceResultExtensions
             return controller.ValidationProblem(controller.ModelState);
         }
 
+        if (error.Kind == ServiceErrorKind.ServiceUnavailable)
+        {
+            ProblemDetails problem = new()
+            {
+                Status = StatusCodes.Status503ServiceUnavailable,
+                Title = "Serviço temporariamente indisponível.",
+                Detail = error.Message,
+            };
+
+            if (error.ResourceId.HasValue)
+            {
+                problem.Extensions["id"] = error.ResourceId.Value;
+            }
+
+            problem.Extensions["error"] = new
+            {
+                code = "PublicationFailed",
+                message = error.Message,
+            };
+
+            return controller.StatusCode(StatusCodes.Status503ServiceUnavailable, problem);
+        }
+
         (int status, string title) = error.Kind switch
         {
             ServiceErrorKind.NotFound => (StatusCodes.Status404NotFound, "Recurso não encontrado."),

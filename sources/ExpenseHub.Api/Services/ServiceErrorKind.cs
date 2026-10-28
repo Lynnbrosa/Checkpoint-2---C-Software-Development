@@ -16,4 +16,7 @@ public enum ServiceErrorKind
 
     /// <summary>Operação incompatível com o estado atual ou repetida (409).</summary>
     Conflict,
+
+    /// <summary>Serviço externo ou mensageria indisponível após persistir (503).</summary>
+    ServiceUnavailable,
 }
