@@ -3,8 +3,10 @@ using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using ExpenseHub.Api.Data;
 using ExpenseHub.Api.Identity;
+using ExpenseHub.Api.Messaging;
 using ExpenseHub.Api.Security;
 using ExpenseHub.Api.Services;
+using ExpenseHub.Api.Services.Reports;
 using ExpenseHub.Api.Services.Users;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -29,6 +31,7 @@ internal static class Program
         builder.Services.AddOpenApi();
         builder.Services.AddExpenseHubDatabase(builder.Configuration, builder.Environment);
         builder.Services.AddExpenseHubIdentity(builder.Configuration);
+        builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection(RabbitMqOptions.SectionName));
 
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddScoped<IExpenseRepository, EfExpenseRepository>();
@@ -36,6 +39,10 @@ internal static class Program
         builder.Services.AddScoped<IExpenseDecisionService, ExpenseDecisionService>();
         builder.Services.AddScoped<IExpensePaymentService, ExpensePaymentService>();
         builder.Services.AddScoped<IExpenseHistoryService, ExpenseHistoryService>();
+        builder.Services.AddScoped<IReportRepository, EfReportRepository>();
+        builder.Services.AddScoped<IReportMessagePublisher, RabbitMqReportMessagePublisher>();
+        builder.Services.AddScoped<IReportService, ReportService>();
+        builder.Services.AddScoped<IReportProcessor, ReportProcessor>();
         builder.Services.AddScoped<IUserDirectory, IdentityUserDirectory>();
         builder.Services.AddScoped<IAccountService, AccountService>();
         builder.Services.AddScoped<IUserAdministrationService, UserAdministrationService>();
