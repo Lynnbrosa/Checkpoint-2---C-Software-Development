@@ -1,0 +1,75 @@
+name: cp3-publish-and-experiments
+
+on:
+  push:
+    branches: ["main", "master"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  WEB_IMAGE: ghcr.io/lynnbrosa/expensehub-web
+  WORKER_IMAGE: ghcr.io/lynnbrosa/expensehub-worker
+
+jobs:
+  test-publish-and-verify:
+    name: Test, publish images & run E01-E05 experiments
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore, build & run unit tests (CP3-I04 & CP3-I05)
+        run: |
+          dotnet restore ./sources/ExpenseHub.slnx
+          dotnet build ./sources/ExpenseHub.slnx --no-restore
+          dotnet test ./sources/ExpenseHub.slnx --no-build --verbosity normal
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: "${{ env.REGISTRY }}"
+          username: "${{ github.actor }}"
+          password: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Build and push Web & Worker images tagged with commit SHA (CP3-I05)
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          FULL_SHA=$(git rev-parse HEAD)
+          echo "SHORT_SHA=$SHORT_SHA" >> "$GITHUB_ENV"
+          echo "FULL_SHA=$FULL_SHA" >> "$GITHUB_ENV"
+
+          docker build -f ./sources/ExpenseHub.Api/Dockerfile \
+            -t "${WEB_IMAGE}:${SHORT_SHA}" \
+            -t "${WEB_IMAGE}:${FULL_SHA}" .
+
+          docker build -f ./sources/ExpenseHub.Worker/Dockerfile \
+            -t "${WORKER_IMAGE}:${SHORT_SHA}" \
+            -t "${WORKER_IMAGE}:${FULL_SHA}" .
+
+          docker push "${WEB_IMAGE}:${SHORT_SHA}"
+          docker push "${WEB_IMAGE}:${FULL_SHA}"
+          docker push "${WORKER_IMAGE}:${SHORT_SHA}"
+          docker push "${WORKER_IMAGE}:${FULL_SHA}"
+
+      - name: Run mandatory experiments E01 to E05 with Docker Compose (CP3-I06)
+        shell: pwsh
+        run: |
+          ./scripts/Invoke-Cp3Experiments.ps1 -ImageTag $env:SHORT_SHA -OutputDirectory "artifacts/cp3-experiments"
+
+      - name: Upload CP3 experiments dossier & Excel artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: cp3-experiments-evidence
+          path: artifacts/cp3-experiments/
+          retention-days: 30
