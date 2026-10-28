@@ -22,6 +22,8 @@ internal sealed class ExpenseHubDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<PaymentRecord> PaymentRecords => Set<PaymentRecord>();
 
+    public DbSet<ReportJob> ReportJobs => Set<ReportJob>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -31,6 +33,7 @@ internal sealed class ExpenseHubDbContext : IdentityDbContext<ApplicationUser>
         modelBuilder.ApplyConfiguration(new ExpenseConfiguration());
         modelBuilder.ApplyConfiguration(new ExpenseHistoryConfiguration());
         modelBuilder.ApplyConfiguration(new PaymentRecordConfiguration());
+        modelBuilder.ApplyConfiguration(new ReportJobConfiguration());
     }
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
