@@ -1,3 +1,5 @@
+using System;
+
 namespace ExpenseHub.Api.Services;
 
 /// <summary>
@@ -5,11 +7,12 @@ namespace ExpenseHub.Api.Services;
 /// </summary>
 public sealed class ServiceError
 {
-    private ServiceError(ServiceErrorKind kind, string message, string? field)
+    private ServiceError(ServiceErrorKind kind, string message, string? field, Guid? resourceId = null)
     {
         Kind = kind;
         Message = message;
         Field = field;
+        ResourceId = resourceId;
     }
 
     /// <summary>Tipo da falha.</summary>
@@ -20,6 +23,9 @@ public sealed class ServiceError
 
     /// <summary>Campo da requisição relacionado à falha de validação, quando houver.</summary>
     public string? Field { get; }
+
+    /// <summary>Identificador persistido quando a operação registrou o recurso antes da falha.</summary>
+    public Guid? ResourceId { get; }
 
     /// <summary>Entrada inválida.</summary>
     /// <param name="field">Campo inválido.</param>
@@ -41,4 +47,11 @@ public sealed class ServiceError
     /// <param name="message">Motivo.</param>
     /// <returns>Erro de conflito.</returns>
     public static ServiceError Conflict(string message) => new(ServiceErrorKind.Conflict, message, null);
+
+    /// <summary>Serviço de mensageria indisponível após persistir o recurso.</summary>
+    /// <param name="message">Motivo sanitizado.</param>
+    /// <param name="resourceId">Identificador persistido antes da falha.</param>
+    /// <returns>Erro de indisponibilidade (503).</returns>
+    public static ServiceError ServiceUnavailable(string message, Guid? resourceId = null) =>
+        new(ServiceErrorKind.ServiceUnavailable, message, null, resourceId);
 }
