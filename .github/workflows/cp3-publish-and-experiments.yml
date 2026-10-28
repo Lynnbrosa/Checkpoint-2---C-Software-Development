@@ -11,8 +11,6 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  WEB_IMAGE: ghcr.io/lynnbrosa/expensehub-web
-  WORKER_IMAGE: ghcr.io/lynnbrosa/expensehub-worker
 
 jobs:
   test-publish-and-verify:
@@ -34,6 +32,29 @@ jobs:
           dotnet build ./sources/ExpenseHub.slnx --no-restore
           dotnet test ./sources/ExpenseHub.slnx --no-build --verbosity normal
 
+      - name: Build Web & Worker images tagged with commit SHA (CP3-I05)
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          FULL_SHA=$(git rev-parse HEAD)
+          ACTOR_LC=$(echo "${{ github.actor }}" | tr '[:upper:]' '[:lower:]')
+          OWNER_LC=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "SHORT_SHA=$SHORT_SHA" >> "$GITHUB_ENV"
+          echo "FULL_SHA=$FULL_SHA" >> "$GITHUB_ENV"
+          echo "ACTOR_LC=$ACTOR_LC" >> "$GITHUB_ENV"
+          echo "OWNER_LC=$OWNER_LC" >> "$GITHUB_ENV"
+
+          docker build -f ./sources/ExpenseHub.Api/Dockerfile \
+            -t "ghcr.io/${ACTOR_LC}/expensehub-web:${SHORT_SHA}" \
+            -t "ghcr.io/${ACTOR_LC}/expensehub-web:${FULL_SHA}" \
+            -t "ghcr.io/${OWNER_LC}/expensehub-web:${SHORT_SHA}" \
+            -t "ghcr.io/${OWNER_LC}/expensehub-web:${FULL_SHA}" .
+
+          docker build -f ./sources/ExpenseHub.Worker/Dockerfile \
+            -t "ghcr.io/${ACTOR_LC}/expensehub-worker:${SHORT_SHA}" \
+            -t "ghcr.io/${ACTOR_LC}/expensehub-worker:${FULL_SHA}" \
+            -t "ghcr.io/${OWNER_LC}/expensehub-worker:${SHORT_SHA}" \
+            -t "ghcr.io/${OWNER_LC}/expensehub-worker:${FULL_SHA}" .
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -41,30 +62,25 @@ jobs:
           username: "${{ github.actor }}"
           password: "${{ secrets.GITHUB_TOKEN }}"
 
-      - name: Build and push Web & Worker images tagged with commit SHA (CP3-I05)
+      - name: Push Web & Worker images to GHCR (CP3-I05)
         run: |
-          SHORT_SHA=$(git rev-parse --short HEAD)
-          FULL_SHA=$(git rev-parse HEAD)
-          echo "SHORT_SHA=$SHORT_SHA" >> "$GITHUB_ENV"
-          echo "FULL_SHA=$FULL_SHA" >> "$GITHUB_ENV"
-
-          docker build -f ./sources/ExpenseHub.Api/Dockerfile \
-            -t "${WEB_IMAGE}:${SHORT_SHA}" \
-            -t "${WEB_IMAGE}:${FULL_SHA}" .
-
-          docker build -f ./sources/ExpenseHub.Worker/Dockerfile \
-            -t "${WORKER_IMAGE}:${SHORT_SHA}" \
-            -t "${WORKER_IMAGE}:${FULL_SHA}" .
-
-          docker push "${WEB_IMAGE}:${SHORT_SHA}"
-          docker push "${WEB_IMAGE}:${FULL_SHA}"
-          docker push "${WORKER_IMAGE}:${SHORT_SHA}"
-          docker push "${WORKER_IMAGE}:${FULL_SHA}"
+          if docker push "ghcr.io/${OWNER_LC}/expensehub-web:${SHORT_SHA}"; then
+            docker push "ghcr.io/${OWNER_LC}/expensehub-web:${FULL_SHA}"
+            docker push "ghcr.io/${OWNER_LC}/expensehub-worker:${SHORT_SHA}"
+            docker push "ghcr.io/${OWNER_LC}/expensehub-worker:${FULL_SHA}"
+            echo "PUBLISHED_NAMESPACE=$OWNER_LC" >> "$GITHUB_ENV"
+          else
+            docker push "ghcr.io/${ACTOR_LC}/expensehub-web:${SHORT_SHA}"
+            docker push "ghcr.io/${ACTOR_LC}/expensehub-web:${FULL_SHA}"
+            docker push "ghcr.io/${ACTOR_LC}/expensehub-worker:${SHORT_SHA}"
+            docker push "ghcr.io/${ACTOR_LC}/expensehub-worker:${FULL_SHA}"
+            echo "PUBLISHED_NAMESPACE=$ACTOR_LC" >> "$GITHUB_ENV"
+          fi
 
       - name: Run mandatory experiments E01 to E05 with Docker Compose (CP3-I06)
         shell: pwsh
         run: |
-          ./scripts/Invoke-Cp3Experiments.ps1 -ImageTag $env:SHORT_SHA -OutputDirectory "artifacts/cp3-experiments"
+          ./scripts/Invoke-Cp3Experiments.ps1 -ImageTag $env:SHORT_SHA -ImageNamespace $env:PUBLISHED_NAMESPACE -OutputDirectory "artifacts/cp3-experiments"
 
       - name: Upload CP3 experiments dossier & Excel artifact
         if: always()

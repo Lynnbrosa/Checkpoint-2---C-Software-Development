@@ -2,6 +2,7 @@
 param(
     [Parameter(Mandatory)]
     [string]$ImageTag,
+    [string]$ImageNamespace = "lynnbrosa",
     [string]$OutputDirectory = "artifacts/cp3-experiments"
 )
 
@@ -32,8 +33,8 @@ $empKey = "Emp#" + [Guid]::NewGuid().ToString("N").Substring(0, 10) + "9z"
 $rabbitKey = "Rmq#" + [Guid]::NewGuid().ToString("N").Substring(0, 10) + "9z"
 
 @"
-EXPENSEHUB_WEB_IMAGE=ghcr.io/lynnbrosa/expensehub-web:$ImageTag
-EXPENSEHUB_WORKER_IMAGE=ghcr.io/lynnbrosa/expensehub-worker:$ImageTag
+EXPENSEHUB_WEB_IMAGE=ghcr.io/$ImageNamespace/expensehub-web:$ImageTag
+EXPENSEHUB_WORKER_IMAGE=ghcr.io/$ImageNamespace/expensehub-worker:$ImageTag
 WEB_PORT=5245
 ASPNETCORE_ENVIRONMENT=Development
 SEED_ADMIN_EMAIL=admin@expensehub.local
@@ -45,13 +46,13 @@ RABBITMQ_PASS=$rabbitKey
 $lines.Add("# Evidências Operacionais Executadas — Checkpoint 3 (E01 a E05)")
 $lines.Add("")
 $lines.Add("- **Commit / Tag das imagens:** ``$ImageTag``")
-$lines.Add("- **Imagem Web:** ``ghcr.io/lynnbrosa/expensehub-web:$ImageTag``")
-$lines.Add("- **Imagem Worker:** ``ghcr.io/lynnbrosa/expensehub-worker:$ImageTag``")
+$lines.Add("- **Imagem Web:** ``ghcr.io/$ImageNamespace/expensehub-web:$ImageTag``")
+$lines.Add("- **Imagem Worker:** ``ghcr.io/$ImageNamespace/expensehub-worker:$ImageTag``")
 $lines.Add("- **Data da execução (UTC):** $((Get-Date).ToUniversalTime().ToString('o'))")
 
 try {
     Write-Section "Inicialização do Ambiente (CP3-I05)"
-    $pullOut = (docker compose pull 2>&1) -join "`n"
+    $pullOut = (docker compose pull --ignore-buildable 2>&1) -join "`n"
     $upOut = (docker compose up -d 2>&1) -join "`n"
     Write-Block "text" "$pullOut`n$upOut"
 

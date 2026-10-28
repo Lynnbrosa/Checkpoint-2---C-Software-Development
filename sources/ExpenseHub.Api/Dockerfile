@@ -11,6 +11,7 @@ RUN dotnet publish "sources/ExpenseHub.Api/ExpenseHub.Api.csproj" -c Release -o 
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
+RUN mkdir -p /data/keys && chown -R $APP_UID:$APP_UID /data
 EXPOSE 8080
 ENV ASPNETCORE_URLS=http://+:8080
 

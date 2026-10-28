@@ -13,6 +13,7 @@ RUN dotnet publish "sources/ExpenseHub.Worker/ExpenseHub.Worker.csproj" -c Relea
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
+RUN mkdir -p /data && chown -R $APP_UID:$APP_UID /data
 
 COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "ExpenseHub.Worker.dll"]
