@@ -10,6 +10,9 @@
 # usuário com a role Finance
 @financeEmail = financeiro@expensehub.local
 @financePassword = <senha do financeiro>
+# usuário com a role Auditor
+@auditorEmail = auditor@expensehub.local
+@auditorPassword = <senha do auditor>
 
 GET {{ExpenseHub_Api_HostAddress}}/health
 Accept: application/json
@@ -245,3 +248,102 @@ Authorization: Bearer {{employeeToken}}
 ### Histórico visto pelo Approver depois do pagamento: 404
 GET {{ExpenseHub_Api_HostAddress}}/api/expenses/{{expenseId}}/history
 Authorization: Bearer {{approverToken}}
+
+# ============================================================
+# CP3 — Relatórios em segundo plano (RabbitMQ + Worker C# + Excel)
+# ============================================================
+
+### Solicitar relatório próprio (Mine) como Employee: 202 Accepted + Location
+# @name requestMineReport
+POST {{ExpenseHub_Api_HostAddress}}/api/reports
+Authorization: Bearer {{employeeToken}}
+Content-Type: application/json
+
+{
+  "fromDate": "2026-09-01",
+  "toDate": "2026-09-30",
+  "scope": "Mine"
+}
+
+###
+@reportId = {{requestMineReport.response.body.$.id}}
+
+### Listar solicitações do próprio usuário
+GET {{ExpenseHub_Api_HostAddress}}/api/reports
+Authorization: Bearer {{employeeToken}}
+
+### Consultar andamento e resultado do relatório próprio
+GET {{ExpenseHub_Api_HostAddress}}/api/reports/{{reportId}}
+Authorization: Bearer {{employeeToken}}
+
+### Baixar planilha Excel do relatório concluído (.xlsx): 200 OK (ou 409 se ainda Pending/Processing)
+GET {{ExpenseHub_Api_HostAddress}}/api/reports/{{reportId}}/excel
+Authorization: Bearer {{employeeToken}}
+
+### Período inválido (fromDate > toDate): 400 Bad Request
+POST {{ExpenseHub_Api_HostAddress}}/api/reports
+Authorization: Bearer {{employeeToken}}
+Content-Type: application/json
+
+{
+  "fromDate": "2026-09-30",
+  "toDate": "2026-09-01",
+  "scope": "Mine"
+}
+
+### Tentar informar ownerId no corpo: 400 Bad Request
+POST {{ExpenseHub_Api_HostAddress}}/api/reports
+Authorization: Bearer {{employeeToken}}
+Content-Type: application/json
+
+{
+  "fromDate": "2026-09-01",
+  "toDate": "2026-09-30",
+  "scope": "Mine",
+  "ownerId": "outro-usuario"
+}
+
+### Employee tentando solicitar escopo Global: 403 Forbidden
+POST {{ExpenseHub_Api_HostAddress}}/api/reports
+Authorization: Bearer {{employeeToken}}
+Content-Type: application/json
+
+{
+  "fromDate": "2026-09-01",
+  "toDate": "2026-09-30",
+  "scope": "Global"
+}
+
+### Login do Auditor
+# @name auditorLogin
+POST {{ExpenseHub_Api_HostAddress}}/login
+Content-Type: application/json
+
+{
+  "email": "{{auditorEmail}}",
+  "password": "{{auditorPassword}}"
+}
+
+###
+@auditorToken = {{auditorLogin.response.body.$.accessToken}}
+
+### Auditor solicita relatório Global: 202 Accepted
+# @name requestGlobalReport
+POST {{ExpenseHub_Api_HostAddress}}/api/reports
+Authorization: Bearer {{auditorToken}}
+Content-Type: application/json
+
+{
+  "fromDate": "2026-09-01",
+  "toDate": "2026-09-30",
+  "scope": "Global"
+}
+
+### Auditor tenta consultar relatório criado pelo Employee: 404 Not Found
+GET {{ExpenseHub_Api_HostAddress}}/api/reports/{{reportId}}
+Authorization: Bearer {{auditorToken}}
+
+### Auditor tenta baixar Excel de relatório criado pelo Employee: 404 Not Found
+GET {{ExpenseHub_Api_HostAddress}}/api/reports/{{reportId}}/excel
+Authorization: Bearer {{auditorToken}}
+
