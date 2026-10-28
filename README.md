@@ -1,10 +1,11 @@
 # ExpenseHub
 
-API REST de reembolsos corporativos do Checkpoint 2 de C#. Funcionários registram
-despesas, aprovadores decidem, o financeiro paga e auditores consultam o histórico.
+API REST e processamento em segundo plano de reembolsos corporativos dos Checkpoints 2 e 3 de C#. Funcionários registram despesas, aprovadores decidem, o financeiro paga, auditores consultam o histórico e relatórios por período são calculados assincronamente via RabbitMQ e worker C# com exportação em Excel (`.xlsx`).
 
 Especificação e backlog: [Racass/checkpoint-csharpracass-expensehub](https://github.com/Racass/checkpoint-csharpracass-expensehub).
-Cópia do enunciado em [docs/ENUNCIADO.md](docs/ENUNCIADO.md) e dos contratos em [docs/REQUISITOS.md](docs/REQUISITOS.md).
+Cópia do enunciado em [docs/ENUNCIADO.md](docs/ENUNCIADO.md), contratos em [docs/REQUISITOS.md](docs/REQUISITOS.md) e dossiê operacional do CP3 em [docs/CP3-EXPERIMENTOS-E-DIAGNOSTICO.md](docs/CP3-EXPERIMENTOS-E-DIAGNOSTICO.md).
+
+- **Commit entregue no CP2:** `71393bb`
 
 ## Integrantes
 
@@ -16,8 +17,10 @@ Cópia do enunciado em [docs/ENUNCIADO.md](docs/ENUNCIADO.md) e dos contratos em
 
 ## Stack
 
-- .NET 10 e ASP.NET Core
-- Entity Framework Core 10 com SQLite
+- .NET 10, ASP.NET Core e Worker Service (`ExpenseHub.Worker`)
+- Entity Framework Core 10 com SQLite compartilhado
+- RabbitMQ (`RabbitMQ.Client` 7) com fila durável, mensagens persistentes e *publisher confirms*
+- ClosedXML para geração de planilhas `.xlsx` reais
 - MSTest para os testes unitários
 
 ## Como executar
@@ -256,6 +259,52 @@ entrada de histórico são adicionados ao mesmo agregado e gravados num único
 O histórico só aparece para quem enxerga o reembolso. Um Approver, por exemplo, não vê
 o histórico de um reembolso já pago (`404`), igual ao detalhe.
 
+## Relatórios em segundo plano (CP3)
+
+| Método e rota | Quem pode | O que faz |
+|---|---|---|
+| `POST /api/reports` | `Employee` (`Mine`), `Auditor` (`Global`) | Registra solicitação `Pending`, publica no RabbitMQ e retorna `202 Accepted` com `Location` |
+| `GET /api/reports` | Autenticado | Lista somente as solicitações criadas pelo próprio usuário |
+| `GET /api/reports/{id}` | Solicitante dono | Consulta andamento (`Pending`, `Processing`, `Completed`, `Failed`) e resultado persistido |
+| `GET /api/reports/{id}/excel` | Solicitante dono | Baixa planilha `.xlsx` gerada a partir do resultado salvo (`409` se não concluído, `404` se alheio) |
+
+Corpo da solicitação (`POST /api/reports`):
+
+```json
+{
+  "fromDate": "2026-09-01",
+  "toDate": "2026-09-30",
+  "scope": "Mine"
+}
+```
+
+- Filtra `ExpenseDate` inclusivamente entre `fromDate` e `toDate`.
+- Agrupa pelos 5 estados (`Draft`, `Submitted`, `Approved`, `Rejected`, `Paid`) com somas decimais exatas e inclui zeros quando não há ocorrências.
+- O resultado é calculado pelo `ExpenseHub.Worker` e salvo em `ReportJobs`; consultas posteriores e downloads Excel leem apenas o resultado persistido, sem recalcular.
+- Se o broker RabbitMQ não confirmar a publicação, a API preserva o registro em `Pending` e retorna `503 Service Unavailable` com o `id` gerado e erro sanitizado.
+
+### Execução com Docker Compose (Imagens publicadas + RabbitMQ)
+
+1. Copie `.env.example` para `.env` e defina `SEED_ADMIN_PASSWORD`, `RABBITMQ_PASS` e as tags das imagens (`EXPENSEHUB_WEB_IMAGE` e `EXPENSEHUB_WORKER_IMAGE`):
+
+```shell
+cp .env.example .env
+docker compose pull
+docker compose up -d
+docker compose ps
+```
+
+2. Comandos operacionais úteis:
+
+```shell
+docker compose logs --tail 80 worker
+docker compose stop worker
+docker compose up -d worker
+docker compose up -d --force-recreate web worker
+```
+
+O dossiê completo dos experimentos `E01` a `E05` e o diagnóstico de falhas estão em [docs/CP3-EXPERIMENTOS-E-DIAGNOSTICO.md](docs/CP3-EXPERIMENTOS-E-DIAGNOSTICO.md).
+
 ## Matriz de acesso
 
 A matriz de [docs/MATRIZ-AUTORIZACAO.md](docs/MATRIZ-AUTORIZACAO.md) está em
@@ -293,7 +342,7 @@ Rascunho de outra pessoa nunca aparece para ninguém além do dono e do Auditor:
 dotnet test ./sources/ExpenseHub.slnx
 ```
 
-São 193 testes unitários com MSTest, sem banco, rede ou serviço externo:
+São 213 testes unitários com MSTest, sem banco, rede ou RabbitMQ reais:
 
 - `Fakes/InMemoryExpenseRepository` troca o repositório do EF Core por listas em memória
   e segue o mesmo contrato: o `Add` só vale depois do save e o filtro de escopo é
@@ -316,6 +365,9 @@ São 193 testes unitários com MSTest, sem banco, rede ou serviço externo:
 | `Services/ExpenseHistoryServiceTests` | conteúdo e visibilidade do histórico |
 | `Services/ExpenseLifecycleTests` | fluxo completo e repetição sem histórico duplicado |
 | `Services/AccountServiceTests`, `Services/UserAdministrationServiceTests` | cadastro sem role e administração de roles |
+| `Domain/ReportSummaryTests` | cálculo de relatórios por estado, somas decimais e conjunto vazio |
+| `Services/ReportServiceTests` | solicitação, validação de período, autorização `Mine`/`Global`, isolamento por dono, falha de broker (`503`) e contrato Excel (`.xlsx`, `409`, `404`) |
+| `Services/ReportProcessorTests` | filtro inclusivo por `ExpenseDate`, isolamento `Mine` vs `Global` no worker, idempotência persistente após reinício e resultado salvo sem recálculo |
 | `Contracts/RequestValidationTests` | DataAnnotations dos DTOs e campos aceitos |
 
 Para conferir se a suíte pega regressão de verdade, introduzimos um defeito por vez
@@ -360,15 +412,18 @@ O relatório sai em `artifacts/code-quality/report.md` (pasta ignorada pelo Git)
 ```text
 sources/
 ├── ExpenseHub.Api/
-│   ├── Controllers/   rotas HTTP e [Authorize] por role
+│   ├── Controllers/   rotas HTTP e [Authorize] por role (incluindo ReportsController)
 │   ├── Contracts/     DTOs de entrada (Requests) e de saída (Responses)
-│   ├── Services/      regras de negócio, matriz de acesso e erros tipados
-│   ├── Domain/        entidades, tabela de transições e regras de campo
-│   ├── Data/          DbContext, mapeamentos, migrations e repositório do EF Core
+│   ├── Services/      regras de negócio, matriz de acesso, relatórios e geração Excel
+│   ├── Messaging/     publicador RabbitMQ com confirmação (publisher confirms)
+│   ├── Domain/        entidades, tabela de transições, ReportJob e cálculo de resumo
+│   ├── Data/          DbContext, mapeamentos, migrations e repositórios do EF Core
 │   ├── Identity/      usuário, roles, seed do Admin e diretório de usuários
 │   └── Security/      contexto do usuário e validação do security stamp
+├── ExpenseHub.Worker/
+│   └── ReportConsumerWorker.cs  consumidor RabbitMQ com confirmação manual pós-persistência
 └── ExpenseHub.UnitTests/
-    ├── Fakes/         repositório, diretório de usuários e relógio em memória
+    ├── Fakes/         repositórios, publicador, diretório de usuários e relógio em memória
     ├── Domain/
     ├── Services/
     └── Contracts/
