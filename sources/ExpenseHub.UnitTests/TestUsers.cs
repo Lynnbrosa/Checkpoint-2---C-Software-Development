@@ -24,4 +24,6 @@ internal static class TestUsers
     public static UserContext EmployeeAndFinance { get; } = new("employee-finance-1", [Roles.Employee, Roles.Finance]);
 
     public static UserContext AdminAndEmployee { get; } = new("admin-employee-1", [Roles.Admin, Roles.Employee]);
+
+    public static UserContext EmployeeAndAuditor { get; } = new("employee-auditor-1", [Roles.Employee, Roles.Auditor]);
 }

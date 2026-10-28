@@ -14,6 +14,7 @@ namespace ExpenseHub.UnitTests.Contracts;
 internal sealed class RequestValidationTests
 {
     private static readonly string[] _editableDraftFields = ["Description", "Amount", "ExpenseDate", "CategoryId"];
+    private static readonly string[] _reportRequestFields = ["FromDate", "ToDate", "Scope"];
 
     [TestMethod]
     public void ExpenseDraftRequest_Valid_HasNoErrors()
@@ -179,6 +180,27 @@ internal sealed class RequestValidationTests
         LoginRequest request = new() { Email = "ana", Password = TestSecrets.UserSecret };
 
         Assert.IsTrue(FailsOn(Validate(request), nameof(LoginRequest.Email)));
+    }
+
+    [TestMethod]
+    public void CreateReportRequest_OnlyAcceptsPeriodAndScopeWithoutOwnerId()
+    {
+        string[] properties = PublicPropertiesOf<CreateReportRequest>();
+
+        CollectionAssert.AreEquivalent(_reportRequestFields, properties);
+    }
+
+    [TestMethod]
+    public void CreateReportRequest_InvalidScope_FailsValidation()
+    {
+        CreateReportRequest request = new()
+        {
+            FromDate = new DateOnly(2026, 9, 1),
+            ToDate = new DateOnly(2026, 9, 30),
+            Scope = (ExpenseHub.Api.Domain.ReportScope)999,
+        };
+
+        Assert.IsTrue(FailsOn(Validate(request), nameof(CreateReportRequest.Scope)));
     }
 
     private static List<ValidationResult> Validate(object model)
