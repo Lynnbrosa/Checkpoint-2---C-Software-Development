@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -20,6 +21,18 @@ internal static class DatabaseServiceCollectionExtensions
 
         services.AddDbContext<ExpenseHubDbContext>(options =>
             options.UseSqlite(AnchorToContentRoot(connectionString, environment.ContentRootPath)));
+
+        string? keysDirectory = configuration["DataProtection:KeysDirectory"];
+        if (!string.IsNullOrWhiteSpace(keysDirectory))
+        {
+            string resolvedKeysPath = Path.IsPathRooted(keysDirectory)
+                ? keysDirectory
+                : Path.Combine(environment.ContentRootPath, keysDirectory);
+            Directory.CreateDirectory(resolvedKeysPath);
+            services.AddDataProtection()
+                .SetApplicationName("ExpenseHub")
+                .PersistKeysToFileSystem(new DirectoryInfo(resolvedKeysPath));
+        }
 
         return services;
     }

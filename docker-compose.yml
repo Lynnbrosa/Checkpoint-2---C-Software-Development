@@ -1,0 +1,66 @@
+services:
+  rabbitmq:
+    image: rabbitmq:4.0-management-alpine
+    container_name: expensehub-rabbitmq
+    hostname: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    image: ${EXPENSEHUB_WEB_IMAGE:-ghcr.io/lynnbrosa/expensehub-web:commit-sha}
+    container_name: expensehub-web
+    ports:
+      - "${WEB_PORT:-5245}:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ConnectionStrings__ExpenseHub: "Data Source=/data/expensehub.db"
+      DataProtection__KeysDirectory: "/data/keys"
+      Seed__Admin__Email: "${SEED_ADMIN_EMAIL:-admin@expensehub.local}"
+      Seed__Admin__Password: "${SEED_ADMIN_PASSWORD}"
+      RabbitMq__HostName: "rabbitmq"
+      RabbitMq__Port: "5672"
+      RabbitMq__VirtualHost: "/"
+      RabbitMq__UserName: ${RABBITMQ_USER:-guest}
+      RabbitMq__Keyword: ${RABBITMQ_PASS}
+      RabbitMq__QueueName: "expensehub.reports"
+      RabbitMq__PublishTimeoutSeconds: "5"
+    volumes:
+      - expensehub-data:/data
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  worker:
+    image: ${EXPENSEHUB_WORKER_IMAGE:-ghcr.io/lynnbrosa/expensehub-worker:commit-sha}
+    container_name: expensehub-worker
+    environment:
+      DOTNET_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ConnectionStrings__ExpenseHub: "Data Source=/data/expensehub.db"
+      RabbitMq__HostName: "rabbitmq"
+      RabbitMq__Port: "5672"
+      RabbitMq__VirtualHost: "/"
+      RabbitMq__UserName: ${RABBITMQ_USER:-guest}
+      RabbitMq__Keyword: ${RABBITMQ_PASS}
+      RabbitMq__QueueName: "expensehub.reports"
+    volumes:
+      - expensehub-data:/data
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      web:
+        condition: service_started
+
+volumes:
+  expensehub-data:
+  rabbitmq-data:
