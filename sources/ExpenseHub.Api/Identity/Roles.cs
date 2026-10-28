@@ -13,5 +13,8 @@ internal static class Roles
     // quem consulta reembolso e histórico; Admin sozinho fica de fora
     public const string ExpenseReaders = Employee + "," + Approver + "," + Finance + "," + Auditor;
 
+    // quem solicita relatórios: Employee (Mine) e Auditor (Global)
+    public const string ReportRequesters = Employee + "," + Auditor;
+
     public static IReadOnlyList<string> All { get; } = [Admin, Employee, Approver, Finance, Auditor];
 }
