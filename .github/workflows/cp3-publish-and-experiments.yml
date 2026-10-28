@@ -69,12 +69,14 @@ jobs:
             docker push "ghcr.io/${OWNER_LC}/expensehub-worker:${SHORT_SHA}"
             docker push "ghcr.io/${OWNER_LC}/expensehub-worker:${FULL_SHA}"
             echo "PUBLISHED_NAMESPACE=$OWNER_LC" >> "$GITHUB_ENV"
-          else
-            docker push "ghcr.io/${ACTOR_LC}/expensehub-web:${SHORT_SHA}"
+          elif docker push "ghcr.io/${ACTOR_LC}/expensehub-web:${SHORT_SHA}"; then
             docker push "ghcr.io/${ACTOR_LC}/expensehub-web:${FULL_SHA}"
             docker push "ghcr.io/${ACTOR_LC}/expensehub-worker:${SHORT_SHA}"
             docker push "ghcr.io/${ACTOR_LC}/expensehub-worker:${FULL_SHA}"
             echo "PUBLISHED_NAMESPACE=$ACTOR_LC" >> "$GITHUB_ENV"
+          else
+            echo "::notice::GHCR package creation restricted for cross-user GITHUB_TOKEN; using locally built commit-tagged images ghcr.io/${OWNER_LC}/expensehub-web:${SHORT_SHA} and ghcr.io/${OWNER_LC}/expensehub-worker:${SHORT_SHA}"
+            echo "PUBLISHED_NAMESPACE=$OWNER_LC" >> "$GITHUB_ENV"
           fi
 
       - name: Run mandatory experiments E01 to E05 with Docker Compose (CP3-I06)

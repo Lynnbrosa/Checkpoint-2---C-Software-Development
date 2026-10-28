@@ -8,6 +8,18 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+$PSNativeCommandUseErrorActionPreference = $false
+
+function Invoke-NativeText([scriptblock]$command) {
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        return ((& $command 2>&1) | ForEach-Object { "$_" }) -join "`n"
+    }
+    finally {
+        $ErrorActionPreference = $prev
+    }
+}
 
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
 $evidencePath = Join-Path $OutputDirectory "EVIDENCIAS-E01-E05.md"
@@ -52,8 +64,8 @@ $lines.Add("- **Data da execução (UTC):** $((Get-Date).ToUniversalTime().ToStr
 
 try {
     Write-Section "Inicialização do Ambiente (CP3-I05)"
-    $pullOut = (docker compose pull --ignore-buildable 2>&1) -join "`n"
-    $upOut = (docker compose up -d 2>&1) -join "`n"
+    $pullOut = Invoke-NativeText { docker compose pull rabbitmq }
+    $upOut = Invoke-NativeText { docker compose up -d }
     Write-Block "text" "$pullOut`n$upOut"
 
     $baseUrl = "http://localhost:5245"
@@ -66,7 +78,7 @@ try {
         catch {}
     }
 
-    $psOut = (docker compose ps 2>&1) -join "`n"
+    $psOut = Invoke-NativeText { docker compose ps }
     Write-Block "text" $psOut
 
     # Preparação de usuários e reembolsos do exemplo verificável
@@ -140,17 +152,17 @@ try {
     # E02 — Worker parado e retomada
     # ============================================================
     Write-Section "E02 — Worker parado e retomada da mesma solicitação"
-    docker compose stop worker | Out-Null
+    Invoke-NativeText { docker compose stop worker } | Out-Null
     $e02Created = Invoke-RestMethod -Method Post -Uri "$baseUrl/api/reports" -Headers $emp1Headers -ContentType "application/json" -Body '{"fromDate":"2026-09-01","toDate":"2026-09-30","scope":"Mine"}'
     $e02Id = $e02Created.id
     Start-Sleep -Seconds 2
     $e02WhileStopped = Invoke-RestMethod -Method Get -Uri "$baseUrl/api/reports/$e02Id" -Headers $emp1Headers
-    $rmqQueues = (docker compose exec -T rabbitmq rabbitmqctl list_queues name messages_ready messages_unacknowledged 2>&1) -join "`n"
+    $rmqQueues = Invoke-NativeText { docker compose exec -T rabbitmq rabbitmqctl list_queues name messages_ready messages_unacknowledged }
     $lines.Add("Solicitação ``$e02Id`` com worker parado permanece em ``$($e02WhileStopped.status)`` e mensagem aguarda na fila:")
     Write-Block "text" $rmqQueues
     Write-Block "json" ($e02WhileStopped | ConvertTo-Json -Depth 10)
 
-    docker compose up -d worker | Out-Null
+    Invoke-NativeText { docker compose up -d worker } | Out-Null
     $e02AfterResume = $null
     for ($i = 0; $i -lt 20; $i++) {
         Start-Sleep -Milliseconds 500
@@ -164,7 +176,7 @@ try {
     # E03 — Duplicata após reinício do worker
     # ============================================================
     Write-Section "E03 — Duplicata após reinício do worker (Idempotência persistente)"
-    docker compose restart worker | Out-Null
+    Invoke-NativeText { docker compose restart worker } | Out-Null
     Start-Sleep -Seconds 3
     $rmqAuth = "Basic " + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("guest:$rabbitKey"))
     $publishDuplicateBody = @{
@@ -176,7 +188,7 @@ try {
     $pubResult = Invoke-RestMethod -Method Post -Uri "http://localhost:15672/api/exchanges/%2F/amq.default/publish" -Headers @{ Authorization = $rmqAuth } -ContentType "application/json" -Body $publishDuplicateBody
     Start-Sleep -Seconds 2
     $e01AfterDup = Invoke-RestMethod -Method Get -Uri "$baseUrl/api/reports/$e01Id" -Headers $emp1Headers
-    $workerLogs = (docker compose logs --tail 60 worker 2>&1) -join "`n"
+    $workerLogs = Invoke-NativeText { docker compose logs --tail 60 worker }
     $lines.Add("- **Republicação na fila via RabbitMQ Management API:** ``routed = $($pubResult.routed)``")
     $lines.Add("- **completedAt antes:** ``$($e01Detail.completedAt)`` | **completedAt depois:** ``$($e01AfterDup.completedAt)``")
     Write-Block "text" $workerLogs
@@ -208,7 +220,7 @@ try {
     # E05 — Persistência e versão após recriar Web e Worker
     # ============================================================
     Write-Section "E05 — Persistência e versão após recriar Web e Worker"
-    $recreateOut = (docker compose up -d --force-recreate web worker 2>&1) -join "`n"
+    $recreateOut = Invoke-NativeText { docker compose up -d --force-recreate web worker }
     for ($i = 0; $i -lt 30; $i++) {
         Start-Sleep -Seconds 1
         try {
@@ -217,7 +229,7 @@ try {
         }
         catch {}
     }
-    $imagesOut = (docker compose images 2>&1) -join "`n"
+    $imagesOut = Invoke-NativeText { docker compose images }
     $e01AfterRecreate = Invoke-RestMethod -Method Get -Uri "$baseUrl/api/reports/$e01Id" -Headers $emp1Headers
     Write-Block "text" "$recreateOut`n$imagesOut"
     $lines.Add("Consulta ao relatório anterior ``$e01Id`` após recriar contêineres (token e dados preservados):")
@@ -225,6 +237,6 @@ try {
 }
 finally {
     $lines | Set-Content -Path $evidencePath -Encoding utf8
-    docker compose down
+    Invoke-NativeText { docker compose down } | Out-Null
     Remove-Item ".env" -Force -ErrorAction SilentlyContinue
 }

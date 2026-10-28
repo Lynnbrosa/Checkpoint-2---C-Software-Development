@@ -10,6 +10,7 @@ COPY ["sources/ExpenseHub.Api/", "sources/ExpenseHub.Api/"]
 RUN dotnet publish "sources/ExpenseHub.Api/ExpenseHub.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false --no-restore
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+LABEL org.opencontainers.image.source="https://github.com/Lynnbrosa/Checkpoint-2---C-Software-Development"
 WORKDIR /app
 RUN mkdir -p /data/keys && chown -R $APP_UID:$APP_UID /data
 EXPOSE 8080
